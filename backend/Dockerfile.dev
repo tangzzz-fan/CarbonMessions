@@ -6,8 +6,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# 确保node_modules目录权限
+RUN mkdir -p /app/node_modules && chown -R node:node /app
+
 # 避免作为root用户运行
 USER node
 
 # 设置开发服务启动命令
-CMD ["npm", "run", "start:dev"] 
+CMD ["npm", "run", "start:dev"]

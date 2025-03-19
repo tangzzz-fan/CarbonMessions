@@ -11,7 +11,10 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
     environment:
       - NODE_ENV=dev
       - DB_HOST=postgres
@@ -21,7 +24,10 @@ services:
       - DB_DATABASE=carbon_emission_dev
       - JWT_SECRET=dev_secret_key
       - JWT_EXPIRES_IN=30d
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     command: npm run start:dev
+    networks:
+      - app-network
 
   postgres:
     image: postgres:14
@@ -33,6 +39,31 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  rabbitmq_data:
+
+networks:
+  app-network:
+    driver: bridge

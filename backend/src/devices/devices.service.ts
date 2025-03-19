@@ -26,17 +26,17 @@ export class DevicesService {
         return this.devicesRepository.save(device);
     }
 
-    async findAll(user: any): Promise<Device[]> {
-        if (user.roles.includes(Role.ADMIN)) {
+    async findAll(user?: any): Promise<Device[]> {
+        if (user?.roles?.includes(Role.ADMIN)) {
             // 管理员可以看到所有设备的完整信息
             return this.devicesRepository.find();
-        } else if (user.roles.includes(Role.USER)) {
+        } else if (user?.roles?.includes(Role.USER)) {
             // 普通用户只能看到自己的设备，且不包括某些敏感字段
             return this.devicesRepository.find({
                 where: { operatorId: user.id }
             });
         } else {
-            // 访客只能看到设备的基本公开信息
+            // 访客或未定义用户只能看到设备的基本公开信息
             return this.devicesRepository.find({
                 where: { visibility: 'public' }
             });

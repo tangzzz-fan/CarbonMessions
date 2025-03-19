@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { DeviceData } from '../../data-collection/entities/device-data.entity';
 import { User } from '../../users/entities/user.entity';
 import { DeviceStatus } from '../enums/device-status.enum';
 import { DeviceType } from '../enums/device-type.enum';
@@ -75,4 +76,7 @@ export class Device {
 
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt: Date;
-} 
+
+    @OneToMany(() => DeviceData, deviceData => deviceData.device)
+    deviceData: DeviceData[];
+}
