@@ -328,18 +328,36 @@ DB_HOST=postgres   # Docker环境中使用服务名
 ```
 src/
 ├── auth/              # 认证模块
+│   ├── decorators/     # 装饰器
+│   ├── dto/           # 数据传输对象
+│   ├── entities/      # 实体
+│   ├── guards/        # 权限守卫
+│   ├── strategies/    # 策略
+│   ├── auth.controller.ts  # 认证控制器
+│   ├── auth.service.ts     # 认证服务
+│   ├── auth.module.ts      # 认证模块
+│   └── tests/          # 测试文件
 ├── users/             # 用户模块
+│   ├── dto/           # 数据传输对象
+│   ├── entities/      # 实体
+│   ├── roles/         # 角色管理
+│   ├── users.controller.ts  # 用户控制器
+│   ├── users.service.ts     # 用户服务
+│   ├── users.module.ts      # 用户模块
+│   └── tests/          # 测试文件
 ├── devices/           # 设备模块
+│   ├── dto/           # 数据传输对象
+│   ├── entities/      # 实体
+│   ├── devices.controller.ts  # 设备控制器
+│   ├── devices.service.ts     # 设备服务
+│   ├── devices.module.ts      # 设备模块
+│   └── tests/          # 测试文件
 ├── data-collection/   # 数据采集模块（待实现）
 ├── prediction/        # 预测模块（待实现）
 ├── emission/          # 排放管理模块（待实现）
 ├── health/            # 健康检查和数据库初始化
 ├── app.module.ts      # 应用主模块
 └── main.ts            # 应用入口
-test/                  # 测试目录
-├── jest-e2e.json      # 端到端测试配置
-├── device-permissions.e2e-spec.ts  # 设备权限测试
-└── ...                # 其他测试文件
 ```
 
 ## 安全注意事项

@@ -22,7 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../users/enums/role.enum';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
-@ApiTags('data-collection')
+@ApiTags('数据采集')
 @Controller('data-collection')
 export class DataCollectionController {
     private readonly logger = new Logger(DataCollectionController.name);
