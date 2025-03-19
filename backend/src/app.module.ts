@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
@@ -8,6 +8,7 @@ import { PredictionModule } from './prediction/prediction.module';
 import { EmissionModule } from './emission/emission.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
+import { TokenRefreshMiddleware } from './auth/middleware/token-refresh.middleware';
 
 @Module({
     imports: [
@@ -44,4 +45,12 @@ import { HealthModule } from './health/health.module';
         HealthModule,
     ],
 })
-export class AppModule { } 
+
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        // 对所有需要 JWT 验证的路由应用中间件
+        consumer
+            .apply(TokenRefreshMiddleware)
+            .forRoutes('*'); // 或者指定特定路由
+    }
+} 

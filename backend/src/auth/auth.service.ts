@@ -114,4 +114,57 @@ export class AuthService {
 
         return { message: '密码重置成功' };
     }
+
+    async refreshToken(userId: string) {
+        // 获取用户信息
+        const user = await this.usersService.findOne(userId);
+        if (!user) {
+            throw new NotFoundException('用户不存在');
+        }
+
+        // 生成新的 token
+        const payload = { username: user.username, sub: user.id, role: user.role };
+        return {
+            access_token: this.jwtService.sign(payload),
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                fullName: user.fullName,
+                department: user.department,
+                position: user.position,
+            },
+        };
+    }
+
+    // 可选：检查 token 是否即将过期
+    isTokenExpiring(token: string, thresholdMinutes = 30): boolean {
+        try {
+            const decoded = this.jwtService.decode(token) as { exp: number };
+            if (!decoded || !decoded.exp) return true;
+
+            // 计算剩余有效期（毫秒）
+            const expirationTime = decoded.exp * 1000; // 转换为毫秒
+            const currentTime = Date.now();
+            const timeLeft = expirationTime - currentTime;
+
+            // 如果剩余时间小于阈值，认为即将过期
+            return timeLeft < thresholdMinutes * 60 * 1000;
+        } catch (error) {
+            return true; // 解析错误视为需要刷新
+        }
+    }
+
+    validateToken(token: string): any {
+        try {
+            // 使用 JwtService 验证 token
+            const decoded = this.jwtService.verify(token);
+            // 如果需要，可以根据解码后的信息查找用户
+            return decoded; // 返回解码后的用户信息
+        } catch (error) {
+            // 如果 token 无效或过期，抛出未授权异常
+            throw new UnauthorizedException('无效的 token');
+        }
+    }
 } 

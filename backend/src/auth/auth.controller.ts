@@ -60,4 +60,19 @@ export class AuthController {
             resetPasswordDto.newPassword
         );
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('refresh-token')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '刷新访问令牌' })
+    @ApiResponse({ status: 200, description: '令牌刷新成功' })
+    @ApiResponse({ status: 401, description: '未授权' })
+    async refreshToken(@Request() req) {
+        return this.authService.refreshToken(req.user.id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    getProtectedResource(@Request() req) {
+        return { message: 'This is a protected resource', user: req.user };
+    }
 } 

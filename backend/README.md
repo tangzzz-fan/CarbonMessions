@@ -96,7 +96,24 @@ curl http://localhost:3000/db-check/devices?type=truck
 
 ## 运行测试
 
-项目使用Jest作为测试框架，已配置单元测试和端到端测试。
+项目使用Jest作为测试框架，已配置单元测试、集成测试和端到端测试。测试覆盖了所有核心模块，包括用户管理、设备管理、数据采集、认证授权等。
+
+### 测试类型
+
+- **单元测试**: 测试独立的组件和服务
+- **集成测试**: 测试组件间的交互
+- **端到端测试**: 测试完整的业务流程
+
+### 测试覆盖模块
+
+- 用户管理模块 (users)
+- 设备管理模块 (devices)
+- 数据采集模块 (data-collection)
+- 认证模块 (auth)
+- 角色管理模块 (roles)
+- 权限管理模块 (permissions)
+
+### 本地环境运行测试
 
 ```bash
 # 运行所有测试
@@ -107,6 +124,8 @@ npm test -- users        # 用户模块测试
 npm test -- devices      # 设备模块测试
 npm test -- auth         # 认证模块测试
 npm test -- roles        # 角色管理测试
+npm test -- permissions  # 权限管理测试
+npm test -- data-collection  # 数据采集模块测试
 
 # 生成测试覆盖率报告
 npm run test:cov
@@ -117,14 +136,26 @@ npm run test:watch
 # 运行端到端测试
 npm run test:e2e
 
-# 运行设备权限端到端测试
-npm run test:e2e -- device-permissions
+# 运行特定端到端测试
+npm run test:e2e -- device-permissions  # 设备权限测试
+npm run test:e2e -- auth               # 认证流程测试
+npm run test:e2e -- data-collection    # 数据采集测试
+```
 
+### Docker环境
+```bash
+# 运行所有测试
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test
+# 运行特定模块测试
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test -- users
 # 生成测试覆盖率报告
-npm run test:cov
-
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test:cov
 # 以监视模式运行测试（代码修改时自动重新运行）
-npm run test:watch
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test:watch
+# 运行端到端测试
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test:e2e
+# 运行设备权限端到端测试
+docker-compose -f docker-compose.test.yml exec nestjs-app npm run test:e2e -- device-permissions
 ```
 
 ## API文档
