@@ -172,7 +172,7 @@ http://localhost:3000/api/docs
 
 ### 开发环境配置
 
-开发环境使用`docker-compose.dev.yml`配置文件，包含NestJS应用和PostgreSQL数据库服务。
+开发环境使用`docker-compose.dev.yml`配置文件，包含NestJS应用、PostgreSQL数据库服务和pgAdmin管理工具。
 
 #### 方式一：使用开发脚本
 
@@ -210,6 +210,35 @@ docker-compose -f docker-compose.dev.yml up -d
 - 卷挂载：本地代码变更实时同步到容器
 - 独立的开发数据库：使用`carbon_emission_dev`数据库
 - 预配置的环境变量：JWT密钥、数据库连接等
+
+### 开发环境 pgAdmin 配置
+
+开发环境包含了 pgAdmin 数据库管理工具，可以通过浏览器访问和管理 PostgreSQL 数据库。
+
+#### 访问 pgAdmin
+
+```
+http://localhost:5050
+```
+
+#### 登录凭证
+- 邮箱: admin@admin.com
+- 密码: admin
+
+#### 连接数据库
+
+首次登录后，需要添加服务器连接：
+
+1. 右键点击 "Servers"，选择 "Register" > "Server"
+2. 在 "General" 选项卡中，填写名称（例如 "Development DB"）
+3. 在 "Connection" 选项卡中填写以下信息：
+   - Host name/address: `host.docker.internal`（Mac/Windows）或容器 IP 地址（Linux）
+   - Port: `5432`
+   - Maintenance database: `carbon_emission_dev`
+   - Username: `postgres`
+   - Password: `postgres`
+4. 在 "SSL" 选项卡中，将 SSL mode 设置为 "prefer"
+5. 点击 "Save"
 
 ### 生产环境配置
 
@@ -275,6 +304,15 @@ ports:
 DB_HOST=localhost  # 本地开发时使用localhost
 DB_HOST=postgres   # Docker环境中使用服务名
 ```
+
+#### pgAdmin连接问题
+
+如果从pgAdmin连接到PostgreSQL失败，请尝试：
+
+1. 使用容器名称`postgres`作为主机名
+2. 使用`host.docker.internal`作为主机名（适用于Mac/Windows）
+3. 使用PostgreSQL容器的IP地址（适用于Linux）
+4. 确认网络设置正确（两个容器应位于同一网络）
 
 ## 常见问题
 

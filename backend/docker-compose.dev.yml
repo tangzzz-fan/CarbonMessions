@@ -41,11 +41,25 @@ services:
       - "5432:5432"
     networks:
       - app-network
+  pgadmin:
+    image: dpage/pgadmin4
+    depends_on:
+      - postgres
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - app-network
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"   # AMQP protocol port
+      - "5672:5672" # AMQP protocol port
       - "15672:15672" # Management UI port
     environment:
       - RABBITMQ_DEFAULT_USER=guest
@@ -55,7 +69,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,6 +77,8 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  pgadmin_data:
+
 
 networks:
   app-network:
