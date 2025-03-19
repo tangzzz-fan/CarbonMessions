@@ -240,6 +240,9 @@ npm run test:debug
 
 # 运行端到端测试
 npm run test:e2e
+
+# 运行角色管理相关测试
+npm test -- roles
 ```
 
 ### 测试文件位置
@@ -247,25 +250,55 @@ npm run test:e2e
 - 单元测试文件位于各模块的源代码目录中，文件名格式为`*.spec.ts`
 - 端到端测试文件位于`test`目录中
 
-### 测试准备和数据
+### 角色管理模块测试
 
-大多数单元测试使用模拟（mock）避免对数据库或外部服务的依赖。端到端测试则使用测试数据库，测试前会自动初始化测试数据。
+角色管理模块的测试覆盖以下方面：
 
-#### 测试环境设置
+1. **角色服务测试** (`roles.service.spec.ts`):
+   - 获取所有角色和角色描述
+   - 获取角色详情和权限列表
+   - 权限检查功能
+   - 角色层级关系和管理权限控制
 
-要为端到端测试准备专用的测试数据库，请在`.env.test`文件中配置相应的数据库连接参数：
+2. **角色控制器测试** (`roles.controller.spec.ts`):
+   - API端点的正确响应
+   - 角色详情获取
+   - 角色权限列表获取
 
+3. **用户角色管理测试** (`users.controller.roles.spec.ts`):
+   - 角色更新功能
+   - 权限检查和验证
+   - 角色管理权限控制
+   - 按角色筛选用户
+
+4. **权限控制器测试** (`permissions.controller.spec.ts`):
+   - 权限定义获取
+   - 角色-权限映射获取
+   - 权限描述获取
+
+要运行特定的角色测试，可以使用：
+
+```bash
+# 运行角色服务测试
+npm test -- roles.service
+
+# 运行角色控制器测试  
+npm test -- roles.controller
+
+# 运行用户角色管理测试
+npm test -- users.controller.roles
+
+# 运行权限控制器测试
+npm test -- permissions.controller
 ```
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-DB_DATABASE=carbon_emission_test
-```
 
-运行测试时会使用这些测试环境配置，避免干扰开发或生产数据库。
+这些测试确保角色管理系统正确实现，特别是：
+- 正确定义和分配权限
+- 角色层级关系正确
+- 只有高权限角色可以管理低权限角色
+- 角色变更时的权限验证有效
 
-## 用户模块测试覆盖的内容
+### 用户模块测试覆盖的内容
 
 用户模块的测试主要覆盖以下功能：
 

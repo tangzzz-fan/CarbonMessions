@@ -1,8 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { Role } from '../users/enums/role.enum';
 
 @ApiTags('数据库检查')
 @Controller('db-check')
@@ -82,52 +83,50 @@ export class DbCheckController {
         }
     }
 
-    @Get('test-user')
+    @Post('test-user')
     @ApiOperation({ summary: '创建测试用户' })
     @ApiResponse({ status: 200, description: '返回创建结果' })
     async createTestUser() {
         try {
-            // 检查测试用户是否已存在
-            const existingUser = await this.dataSource
+            // 检查是否存在管理员用户
+            const userCount = await this.dataSource
                 .createQueryBuilder()
-                .select('u.id')
-                .from(User, 'u')
-                .where('u.username = :username', { username: 'testadmin' })
-                .getOne();
+                .select('COUNT(*)')
+                .from(User, 'user')
+                .where('user.username = :username', { username: 'admin' })
+                .getRawOne();
 
-            if (existingUser) {
+            if (parseInt(userCount.count) > 0) {
                 return {
-                    status: 'info',
                     message: '测试用户已存在',
-                    userId: existingUser.id,
+                    timestamp: new Date(),
                 };
             }
 
-            // 创建测试用户（使用bcrypt哈希的密码）
-            // 密码是 'admin123'，对应的bcrypt哈希值
+            // 插入管理员用户
             const result = await this.dataSource
                 .createQueryBuilder()
                 .insert()
                 .into(User)
                 .values({
-                    username: 'testadmin',
+                    username: 'admin',
                     email: 'admin@example.com',
                     password: '$2b$10$jw9OjMrQtGi4LzPL48jSLO0pssW1W.s1e9X4RoyKCGwMBVvIPlH0e', // 'admin123'
-                    role: 'admin',
+                    role: Role.ADMIN, // 使用枚举值替代字符串
                 })
                 .returning('id')
                 .execute();
 
             return {
-                status: 'ok',
                 message: '测试用户创建成功',
                 userId: result.identifiers[0].id,
+                timestamp: new Date(),
             };
         } catch (error) {
             return {
-                status: 'error',
-                message: '创建测试用户失败',
+                message: '测试用户创建失败',
                 error: error.message,
+                timestamp: new Date(),
             };
         }
     }

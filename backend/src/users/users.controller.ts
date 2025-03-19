@@ -15,13 +15,17 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from './constants/permissions.constant';
 import { Role } from './enums/role.enum';
+import { RolesService } from './roles/roles.service';
 
 @ApiTags('用户管理')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
 @ApiBearerAuth()
 export class UsersController {
-    constructor(private readonly usersService: UsersService) { }
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly rolesService: RolesService,
+    ) { }
 
     @Post()
     @Roles(Role.ADMIN)
@@ -127,5 +131,80 @@ export class UsersController {
             throw new ForbiddenException('不允许自行修改用户角色');
         }
         return this.usersService.update(req.user.id, updateUserDto);
+    }
+
+    @Patch(':id/role')
+    @Roles(Role.ADMIN)
+    @Permissions(PERMISSIONS.USER_UPDATE)
+    @ApiOperation({ summary: '更改用户角色' })
+    @ApiResponse({ status: 200, description: '角色更新成功' })
+    @ApiResponse({ status: 403, description: '没有权限更改为该角色' })
+    @ApiResponse({ status: 404, description: '用户不存在' })
+    async updateUserRole(
+        @Param('id') id: string,
+        @Body('role') newRole: Role,
+        @Request() req
+    ) {
+        // 检查要分配的角色是否有效
+        if (!Object.values(Role).includes(newRole)) {
+            throw new BadRequestException('无效的角色');
+        }
+
+        // 检查管理员是否有权限分配该角色
+        // 管理员不能分配与自己同级或更高级的角色
+        if (!this.rolesService.canManageRole(req.user.role, newRole)) {
+            throw new ForbiddenException('您没有权限分配该角色');
+        }
+
+        // 获取用户
+        const user = await this.usersService.findOne(id);
+
+        // 管理员不能修改比自己权限高的用户
+        if (!this.rolesService.canManageRole(req.user.role, user.role)) {
+            throw new ForbiddenException('您没有权限修改该用户');
+        }
+
+        // 更新角色
+        const updatedUser = await this.usersService.update(id, { role: newRole });
+        return {
+            message: '用户角色更新成功',
+            user: {
+                id: updatedUser.id,
+                username: updatedUser.username,
+                role: updatedUser.role,
+            }
+        };
+    }
+
+    @Get(':id/permissions')
+    @Roles(Role.ADMIN, Role.MANAGER)
+    @ApiOperation({ summary: '获取用户的权限列表' })
+    @ApiResponse({ status: 200, description: '返回用户的权限列表' })
+    @ApiResponse({ status: 404, description: '用户不存在' })
+    async getUserPermissions(@Param('id') id: string) {
+        const user = await this.usersService.findOne(id);
+        const roleDetails = this.rolesService.getRoleDetails(user.role as Role);
+
+        return {
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+            },
+            permissions: roleDetails.permissions
+        };
+    }
+
+    @Get('role/:role')
+    @Roles(Role.ADMIN, Role.MANAGER)
+    @ApiOperation({ summary: '获取特定角色的所有用户' })
+    @ApiResponse({ status: 200, description: '返回用户列表' })
+    async getUsersByRole(@Param('role') role: Role) {
+        if (!Object.values(Role).includes(role)) {
+            throw new BadRequestException('无效的角色');
+        }
+
+        const users = await this.usersService.findAll({ role });
+        return users;
     }
 } 

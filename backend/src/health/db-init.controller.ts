@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Device } from '../devices/entities/device.entity';
 import * as bcrypt from 'bcrypt';
+import { Role } from '../users/enums/role.enum';
 
 @ApiTags('数据库初始化')
 @Controller('db-init')
@@ -49,44 +50,56 @@ export class DbInitController {
     @ApiResponse({ status: 201, description: '用户数据初始化成功' })
     async initUsers() {
         try {
-            // 删除所有现有用户（谨慎使用，仅用于开发环境）
-            await this.dataSource.createQueryBuilder().delete().from(User).execute();
+            // 检查是否已存在用户
+            const userCount = await this.dataSource
+                .createQueryBuilder()
+                .select('COUNT(*)')
+                .from(User, 'user')
+                .getRawOne();
 
-            // 定义不同角色的用户
+            if (parseInt(userCount.count) > 0) {
+                return {
+                    message: '用户数据已存在，跳过初始化',
+                    count: parseInt(userCount.count),
+                    timestamp: new Date(),
+                };
+            }
+
+            // 定义测试用户，使用枚举值代替字符串
             const users = [
                 {
                     username: 'admin',
                     email: 'admin@example.com',
-                    password: await bcrypt.hash('admin123', 10),
-                    role: 'admin',
+                    password: '$2b$10$jw9OjMrQtGi4LzPL48jSLO0pssW1W.s1e9X4RoyKCGwMBVvIPlH0e', // 'admin123'
+                    role: Role.ADMIN // 使用枚举类型
                 },
                 {
                     username: 'manager',
                     email: 'manager@example.com',
-                    password: await bcrypt.hash('manager123', 10),
-                    role: 'manager',
+                    password: '$2b$10$O0JU4d7nQKGc.cMrlYh5GeJ.P1ZPnD58pHYmiD1CuPrEoU3RjO43.', // 'manager123'
+                    role: Role.MANAGER // 使用枚举类型
                 },
                 {
                     username: 'operator',
                     email: 'operator@example.com',
-                    password: await bcrypt.hash('operator123', 10),
-                    role: 'operator',
+                    password: '$2b$10$YOQpIGTGWBxKzJbQI16BO.7/d0ORMJgbxqfZtBP5kYmDczjWePcj2', // 'operator123'
+                    role: Role.OPERATOR // 使用枚举类型
                 },
                 {
                     username: 'viewer',
                     email: 'viewer@example.com',
-                    password: await bcrypt.hash('viewer123', 10),
-                    role: 'viewer',
+                    password: '$2b$10$G7vvG0LGQJfCVJGLhg4z2u59Id3qI1tMn2qAkfL36SFMsuFCZXd42', // 'viewer123'
+                    role: Role.VIEWER // 使用枚举类型
                 },
                 {
                     username: 'user',
                     email: 'user@example.com',
-                    password: await bcrypt.hash('user123', 10),
-                    role: 'user',
+                    password: '$2b$10$P/Tte0sMajE1WL1GX8e69eclXCRgRayhK8mRBvFgRgYyf/G9mcwLO', // 'user123'
+                    role: Role.USER // 使用枚举类型
                 },
             ];
 
-            // 插入用户
+            // 插入用户数据
             const result = await this.dataSource
                 .createQueryBuilder()
                 .insert()
@@ -95,15 +108,15 @@ export class DbInitController {
                 .execute();
 
             return {
-                status: 'success',
-                message: `成功创建 ${result.identifiers.length} 个用户`,
-                users: users.map(u => ({ username: u.username, email: u.email, role: u.role })),
+                message: '用户数据初始化成功',
+                count: result.identifiers.length,
+                timestamp: new Date(),
             };
         } catch (error) {
             return {
-                status: 'error',
-                message: '初始化用户数据失败',
+                message: '用户数据初始化失败',
                 error: error.message,
+                timestamp: new Date(),
             };
         }
     }
