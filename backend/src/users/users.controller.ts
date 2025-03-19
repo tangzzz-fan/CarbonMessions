@@ -46,6 +46,7 @@ export class UsersController {
     @ApiQuery({ name: 'role', required: false, description: '按角色过滤' })
     @ApiQuery({ name: 'isActive', required: false, description: '按激活状态过滤' })
     @ApiQuery({ name: 'department', required: false, description: '按部门过滤' })
+    @Roles(Role.ADMIN)
     findAll(
         @Query('role') role?: string,
         @Query('isActive') isActive?: boolean,

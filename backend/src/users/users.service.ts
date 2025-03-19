@@ -114,4 +114,9 @@ export class UsersService {
             lastLogin: new Date()
         });
     }
-} 
+
+    async deleteAll(): Promise<void> {
+        await this.usersRepository.delete({});
+        return;
+    }
+}

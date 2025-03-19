@@ -7,22 +7,27 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { RolesModule } from '../users/roles/roles.module';
 
 @Module({
     imports: [
         UsersModule,
+        RolesModule,
         PassportModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
             useFactory: (configService: ConfigService) => ({
-                secret: configService.get('JWT_SECRET'),
-                signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN', '1d') },
+                secret: configService.get<string>('JWT_SECRET') || 'dev_fallback_secret_key',
+                signOptions: {
+                    expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '30d'
+                },
             }),
         }),
     ],
-    providers: [AuthService, LocalStrategy, JwtStrategy],
+    providers: [AuthService, LocalStrategy, JwtStrategy, RolesGuard],
     controllers: [AuthController],
-    exports: [AuthService],
+    exports: [AuthService, JwtModule, RolesGuard],
 })
 export class AuthModule { } 

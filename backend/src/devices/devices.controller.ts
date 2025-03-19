@@ -35,20 +35,22 @@ export class DevicesController {
     }
 
     @Get()
+    @Roles(Role.ADMIN, Role.USER, Role.GUEST)
     @Permissions(PERMISSIONS.DEVICE_READ)
     @ApiOperation({ summary: '获取所有设备' })
     @ApiResponse({ status: 200, description: '返回设备列表' })
-    findAll(@Query() queryParams: QueryDeviceDto) {
-        return this.devicesService.findAll(queryParams);
+    findAll(@Request() req) {
+        return this.devicesService.findAll(req.user);
     }
 
     @Get(':id')
+    @Roles(Role.ADMIN, Role.USER, Role.GUEST)
     @Permissions(PERMISSIONS.DEVICE_READ)
     @ApiOperation({ summary: '获取单个设备详情' })
     @ApiResponse({ status: 200, description: '返回设备详情' })
     @ApiResponse({ status: 404, description: '设备不存在' })
-    findOne(@Param('id') id: string) {
-        return this.devicesService.findOne(id);
+    findOne(@Param('id') id: string, @Request() req) {
+        return this.devicesService.findOne(id, req.user);
     }
 
     @Patch(':id')
@@ -147,8 +149,8 @@ export class DevicesController {
     @ApiResponse({ status: 200, description: '返回设备历史数据' })
     @ApiResponse({ status: 404, description: '设备不存在' })
     async getDeviceData(@Param('id') id: string, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
-        // 首先确认设备存在
-        await this.devicesService.findOne(id);
+        // 首先确认设备存在，传递admin权限
+        await this.devicesService.findOne(id, { roles: [Role.ADMIN] });
 
         // 这里应该调用数据采集服务获取设备数据
         // 由于数据采集模块尚未完全实现，这里返回一个模拟数据
@@ -168,8 +170,8 @@ export class DevicesController {
     @ApiResponse({ status: 200, description: '设备配置更新成功' })
     @ApiResponse({ status: 404, description: '设备不存在' })
     async configureDevice(@Param('id') id: string, @Body() configData: any) {
-        // 首先确认设备存在
-        const device = await this.devicesService.findOne(id);
+        // 首先确认设备存在，传递admin权限
+        const device = await this.devicesService.findOne(id, { roles: [Role.ADMIN] });
 
         // 这里应该调用配置服务更新设备采集配置
         // 由于配置模块尚未完全实现，这里返回一个成功消息
@@ -179,5 +181,11 @@ export class DevicesController {
             deviceName: device.name,
             config: configData
         };
+    }
+
+    @Get(':id/sensitive-data')
+    @Roles(Role.ADMIN)
+    findSensitiveData(@Param('id') id: string) {
+        return this.devicesService.findSensitiveData(id);
     }
 } 

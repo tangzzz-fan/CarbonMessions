@@ -4,17 +4,42 @@ import { ROLE_PERMISSIONS } from '../constants/permissions.constant';
 
 @Injectable()
 export class RolesService {
+    // 定义角色层级，数字越大权限越高
+    private readonly roleHierarchy: { [key in Role]: number } = {
+        [Role.ADMIN]: 100,    // 管理员最高权限
+        [Role.MANAGER]: 80,   // 管理者次高权限
+        [Role.OPERATOR]: 60,  // 操作员
+        [Role.VIEWER]: 40,    // 查看者
+        [Role.USER]: 20,      // 普通用户
+        [Role.GUEST]: 0       // 访客最低权限
+    };
+
+    // 角色描述信息
+    private readonly roleDescriptions: { [key in Role]: { name: string, description: string } } = {
+        [Role.ADMIN]: { name: '管理员', description: '系统管理员，拥有所有权限' },
+        [Role.MANAGER]: { name: '管理人员', description: '管理人员，可进行大部分管理操作' },
+        [Role.OPERATOR]: { name: '操作员', description: '操作员，负责数据录入和基本操作' },
+        [Role.VIEWER]: { name: '查看者', description: '查看者，只能查看数据' },
+        [Role.USER]: { name: '普通用户', description: '普通用户，权限非常有限' },
+        [Role.GUEST]: { name: '访客', description: '访客，只能查看公开信息' }
+    };
+
     /**
-     * 获取所有角色列表
+     * 获取所有角色
      */
-    getAllRoles(): { name: string, value: string, description: string }[] {
-        return [
-            { name: '管理员', value: Role.ADMIN, description: '系统管理员，拥有所有权限' },
-            { name: '管理人员', value: Role.MANAGER, description: '管理人员，可进行大部分管理操作' },
-            { name: '操作员', value: Role.OPERATOR, description: '操作员，负责数据录入和基本操作' },
-            { name: '查看者', value: Role.VIEWER, description: '查看者，只有只读权限' },
-            { name: '普通用户', value: Role.USER, description: '普通用户，权限非常有限' },
-        ];
+    getAllRoles(): Role[] {
+        return Object.values(Role);
+    }
+
+    /**
+     * 获取角色的详细信息列表
+     */
+    getAllRolesInfo(): { name: string, value: Role, description: string }[] {
+        return this.getAllRoles().map(role => ({
+            name: this.roleDescriptions[role].name,
+            value: role,
+            description: this.roleDescriptions[role].description
+        }));
     }
 
     /**
@@ -37,26 +62,44 @@ export class RolesService {
     }
 
     /**
-     * 获取角色层级关系，用于权限判断
-     * 返回值越大表示权限越高
+     * 获取角色的层级值
      */
     getRoleHierarchy(role: Role): number {
-        const hierarchy = {
-            [Role.ADMIN]: 50,
-            [Role.MANAGER]: 40,
-            [Role.OPERATOR]: 30,
-            [Role.VIEWER]: 20,
-            [Role.USER]: 10,
-        };
-
-        return hierarchy[role] || 0;
+        return this.roleHierarchy[role] || 0;
     }
 
     /**
-     * 检查targetRole是否可以被currentRole修改
-     * 规则：用户只能修改权限低于自己的角色
+     * 检查一个角色是否可以管理另一个角色
      */
-    canManageRole(currentRole: Role, targetRole: Role): boolean {
-        return this.getRoleHierarchy(currentRole) > this.getRoleHierarchy(targetRole);
+    canManageRole(managerRole: Role, targetRole: Role): boolean {
+        if (managerRole === targetRole) {
+            return false;
+        }
+
+        if (managerRole === Role.ADMIN && targetRole !== Role.ADMIN) {
+            return true;
+        }
+
+        const managerHierarchy = this.getRoleHierarchy(managerRole);
+        const targetHierarchy = this.getRoleHierarchy(targetRole);
+
+        return managerHierarchy > targetHierarchy;
+    }
+
+    /**
+     * 检查一个角色是否至少与另一个角色具有相同的权限级别
+     */
+    isRoleAtLeastAsHighAs(role: Role, targetRole: Role): boolean {
+        const roleHierarchy = this.getRoleHierarchy(role);
+        const targetHierarchy = this.getRoleHierarchy(targetRole);
+        return roleHierarchy >= targetHierarchy;
+    }
+
+    /**
+     * 获取指定角色可以管理的所有角色
+     */
+    getManageableRoles(role: Role): Role[] {
+        return this.getAllRoles()
+            .filter(targetRole => this.canManageRole(role, targetRole));
     }
 } 

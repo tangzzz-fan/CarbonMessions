@@ -154,7 +154,8 @@ describe('DevicesService', () => {
     });
 
     describe('findOne', () => {
-        it('should return a device if found', async () => {
+        it('should return a device by id', async () => {
+            const mockUser = { roles: ['admin'] };
             const mockDevice = {
                 id: 'device-uuid',
                 name: 'Test Device'
@@ -162,14 +163,15 @@ describe('DevicesService', () => {
 
             mockDeviceRepository.findOne.mockResolvedValue(mockDevice);
 
-            const result = await service.findOne('device-uuid');
+            const result = await service.findOne('device-uuid', mockUser);
             expect(result).toEqual(mockDevice);
         });
 
-        it('should throw NotFoundException if device not found', async () => {
+        it('should throw NotFoundException for non-existent device', async () => {
+            const mockUser = { roles: ['admin'] };
             mockDeviceRepository.findOne.mockResolvedValue(null);
 
-            await expect(service.findOne('non-existent-id'))
+            await expect(service.findOne('non-existent-id', mockUser))
                 .rejects
                 .toThrow(NotFoundException);
         });

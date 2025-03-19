@@ -90,7 +90,8 @@ describe('DevicesController', () => {
     });
 
     describe('findOne', () => {
-        it('should return a single device', async () => {
+        it('should return a device by id', async () => {
+            const mockUser = { roles: ['admin'] };
             const mockDevice = {
                 id: 'device-uuid',
                 name: 'Test Device',
@@ -99,16 +100,18 @@ describe('DevicesController', () => {
 
             jest.spyOn(service, 'findOne').mockResolvedValue(mockDevice as any);
 
-            const result = await controller.findOne('device-uuid');
+            const result = await controller.findOne('device-uuid', { user: mockUser });
 
             expect(result).toEqual(mockDevice);
-            expect(service.findOne).toHaveBeenCalledWith('device-uuid');
+            expect(service.findOne).toHaveBeenCalledWith('device-uuid', { user: mockUser });
         });
 
-        it('should throw NotFoundException if device not found', async () => {
+        it('should throw NotFoundException for non-existent device', async () => {
+            const mockUser = { roles: ['admin'] };
             jest.spyOn(service, 'findOne').mockRejectedValue(new NotFoundException());
 
-            await expect(controller.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
+            await expect(controller.findOne('non-existent-id', { user: mockUser }))
+                .rejects.toThrow(NotFoundException);
         });
     });
 

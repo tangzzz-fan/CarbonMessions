@@ -3,5 +3,6 @@ export enum Role {
     MANAGER = 'manager',     // 管理人员
     OPERATOR = 'operator',   // 操作员
     VIEWER = 'viewer',       // 查看者
-    USER = 'user'           // 普通用户
+    USER = 'user',           // 普通用户
+    GUEST = 'guest'          // 访客
 } 

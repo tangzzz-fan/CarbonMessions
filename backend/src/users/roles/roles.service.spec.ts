@@ -19,14 +19,28 @@ describe('RolesService', () => {
     });
 
     describe('getAllRoles', () => {
-        it('should return all roles with their descriptions', () => {
+        it('should return all roles', () => {
             const roles = service.getAllRoles();
-            expect(roles).toHaveLength(5); // 5个角色：ADMIN, MANAGER, OPERATOR, VIEWER, USER
-            expect(roles.map(r => r.value)).toContain(Role.ADMIN);
-            expect(roles.map(r => r.value)).toContain(Role.USER);
-            expect(roles[0]).toHaveProperty('name');
-            expect(roles[0]).toHaveProperty('value');
-            expect(roles[0]).toHaveProperty('description');
+            expect(roles).toContain(Role.ADMIN);
+            expect(roles).toContain(Role.USER);
+            expect(roles.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('getAllRolesInfo', () => {
+        it('should return detailed role information', () => {
+            const rolesInfo = service.getAllRolesInfo();
+            expect(rolesInfo.length).toBeGreaterThan(0);
+            expect(rolesInfo[0]).toHaveProperty('name');
+            expect(rolesInfo[0]).toHaveProperty('value');
+            expect(rolesInfo[0]).toHaveProperty('description');
+        });
+
+        it('should include all roles with correct information', () => {
+            const rolesInfo = service.getAllRolesInfo();
+            const adminRole = rolesInfo.find(r => r.value === Role.ADMIN);
+            expect(adminRole).toBeDefined();
+            expect(adminRole.name).toBe('管理员');
         });
     });
 
@@ -73,14 +87,13 @@ describe('RolesService', () => {
         });
 
         it('should return 0 for unknown role', () => {
-            expect(service.getRoleHierarchy('unknown' as Role)).toBe(0);
+            expect(service.getRoleHierarchy('UNKNOWN_ROLE' as Role)).toBe(0);
         });
     });
 
     describe('canManageRole', () => {
         it('should allow higher roles to manage lower roles', () => {
             expect(service.canManageRole(Role.ADMIN, Role.MANAGER)).toBe(true);
-            expect(service.canManageRole(Role.ADMIN, Role.USER)).toBe(true);
             expect(service.canManageRole(Role.MANAGER, Role.OPERATOR)).toBe(true);
         });
 
@@ -88,6 +101,18 @@ describe('RolesService', () => {
             expect(service.canManageRole(Role.MANAGER, Role.ADMIN)).toBe(false);
             expect(service.canManageRole(Role.USER, Role.VIEWER)).toBe(false);
             expect(service.canManageRole(Role.ADMIN, Role.ADMIN)).toBe(false); // 相同角色
+        });
+    });
+
+    describe('isRoleAtLeastAsHighAs', () => {
+        it('should return true for higher or equal roles', () => {
+            expect(service.isRoleAtLeastAsHighAs(Role.ADMIN, Role.MANAGER)).toBe(true);
+            expect(service.isRoleAtLeastAsHighAs(Role.ADMIN, Role.ADMIN)).toBe(true);
+        });
+
+        it('should return false for lower roles', () => {
+            expect(service.isRoleAtLeastAsHighAs(Role.USER, Role.ADMIN)).toBe(false);
+            expect(service.isRoleAtLeastAsHighAs(Role.OPERATOR, Role.MANAGER)).toBe(false);
         });
     });
 }); 

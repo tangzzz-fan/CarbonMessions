@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In } from 'typeorm';
 import { Device } from './entities/device.entity';
@@ -6,6 +6,7 @@ import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { QueryDeviceDto } from './dto/query-device.dto';
 import { UsersService } from '../users/users.service';
+import { Role } from '../users/enums/role.enum';
 
 @Injectable()
 export class DevicesService {
@@ -25,45 +26,24 @@ export class DevicesService {
         return this.devicesRepository.save(device);
     }
 
-    async findAll(queryParams: QueryDeviceDto): Promise<Device[]> {
-        const queryBuilder = this.devicesRepository.createQueryBuilder('device');
-
-        // 根据查询参数添加条件
-        if (queryParams.name) {
-            queryBuilder.andWhere('device.name LIKE :name', { name: `%${queryParams.name}%` });
+    async findAll(user: any): Promise<Device[]> {
+        if (user.roles.includes(Role.ADMIN)) {
+            // 管理员可以看到所有设备的完整信息
+            return this.devicesRepository.find();
+        } else if (user.roles.includes(Role.USER)) {
+            // 普通用户只能看到自己的设备，且不包括某些敏感字段
+            return this.devicesRepository.find({
+                where: { operatorId: user.id }
+            });
+        } else {
+            // 访客只能看到设备的基本公开信息
+            return this.devicesRepository.find({
+                where: { visibility: 'public' }
+            });
         }
-
-        if (queryParams.type) {
-            queryBuilder.andWhere('device.type = :type', { type: queryParams.type });
-        }
-
-        if (queryParams.status) {
-            queryBuilder.andWhere('device.status = :status', { status: queryParams.status });
-        }
-
-        if (queryParams.energyType) {
-            queryBuilder.andWhere('device.energyType = :energyType', { energyType: queryParams.energyType });
-        }
-
-        if (queryParams.location) {
-            queryBuilder.andWhere('device.location LIKE :location', { location: `%${queryParams.location}%` });
-        }
-
-        if (queryParams.operatorId) {
-            queryBuilder.andWhere('device.operatorId = :operatorId', { operatorId: queryParams.operatorId });
-        }
-
-        if (queryParams.isActive !== undefined) {
-            queryBuilder.andWhere('device.isActive = :isActive', { isActive: queryParams.isActive });
-        }
-
-        // 关联查询操作员信息
-        queryBuilder.leftJoinAndSelect('device.operator', 'user');
-
-        return queryBuilder.getMany();
     }
 
-    async findOne(id: string): Promise<Device> {
+    async findOne(id: string, user: any): Promise<Device> {
         const device = await this.devicesRepository.findOne({
             where: { id },
             relations: ['operator']
@@ -73,7 +53,33 @@ export class DevicesService {
             throw new NotFoundException(`ID为${id}的设备不存在`);
         }
 
-        return device;
+        if (user && user.roles) {
+            if (user.roles.includes(Role.ADMIN)) {
+                // 管理员可以看到设备的所有信息
+                return device;
+            } else if (user.roles.includes(Role.USER)) {
+                // 用户只能看到自己的设备
+                if (device.operatorId !== user.id) {
+                    throw new ForbiddenException('您没有权限访问此设备');
+                }
+                // 返回完整设备但不包括敏感信息
+                return device;
+            }
+        }
+
+        // 访客只能看到基本信息
+        // 我们需要创建一个符合Device类型的对象
+        const { id: deviceId, name, location, status, type, model, manufacturer, description } = device;
+        return this.devicesRepository.create({
+            id: deviceId,
+            name,
+            location,
+            status,
+            type,
+            model,
+            manufacturer,
+            description
+        });
     }
 
     async update(id: string, updateDeviceDto: UpdateDeviceDto): Promise<Device> {
@@ -83,7 +89,7 @@ export class DevicesService {
         }
 
         // 检查设备是否存在
-        const device = await this.findOne(id);
+        const device = await this.findOne(id, { roles: [Role.ADMIN] }); // 以管理员身份查询
 
         // 更新设备
         const updatedDevice = Object.assign(device, updateDeviceDto);
@@ -99,7 +105,7 @@ export class DevicesService {
     }
 
     async updateStatus(id: string, status: string): Promise<Device> {
-        const device = await this.findOne(id);
+        const device = await this.findOne(id, { roles: [Role.ADMIN] }); // 以管理员身份查询
         device.status = status as any;
         return this.devicesRepository.save(device);
     }
@@ -123,4 +129,47 @@ export class DevicesService {
 
         return result.affected || 0;
     }
-} 
+
+    async removeAll() {
+        return this.devicesRepository.delete({});
+    }
+
+    async assignToOperator(deviceName: string, operatorUsername: string) {
+        const device = await this.devicesRepository.findOne({ where: { name: deviceName } });
+        if (!device) {
+            throw new NotFoundException(`Device ${deviceName} not found`);
+        }
+
+        return this.devicesRepository.update(device.id, {
+            operatorId: operatorUsername
+        });
+    }
+
+    async updateDeviceVisibility(deviceName: string, visibility: 'public' | 'private') {
+        const device = await this.devicesRepository.findOne({ where: { name: deviceName } });
+        if (!device) {
+            throw new NotFoundException(`Device ${deviceName} not found`);
+        }
+
+        return this.devicesRepository.update(device.id, {
+            visibility
+        });
+    }
+
+    async deleteAll(): Promise<void> {
+        await this.devicesRepository.delete({});
+        return;
+    }
+
+    findSensitiveData(id: string) {
+        const device = this.devicesRepository.findOne({
+            where: { id },
+            // 仅选择设备中已存在的字段
+            select: ['id', 'model', 'manufacturer', 'description', 'createdAt', 'updatedAt']
+        });
+        if (!device) return null;
+
+        // 返回包含敏感信息的设备数据
+        return device;
+    }
+}

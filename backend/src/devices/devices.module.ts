@@ -4,11 +4,13 @@ import { DevicesController } from './devices.controller';
 import { DevicesService } from './devices.service';
 import { Device } from './entities/device.entity';
 import { UsersModule } from '../users/users.module';
+import { RolesModule } from '../users/roles/roles.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Device]),
-        UsersModule
+        UsersModule,
+        RolesModule
     ],
     controllers: [DevicesController],
     providers: [DevicesService],

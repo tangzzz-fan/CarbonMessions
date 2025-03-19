@@ -67,6 +67,9 @@ export class Device {
     @Column({ default: true })
     isActive: boolean;
 
+    @Column({ default: 'private' })
+    visibility: 'public' | 'private';
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 
