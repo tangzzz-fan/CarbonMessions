@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DevicesController } from './devices.controller';
-import { DevicesService } from './devices.service';
+import { DevicesController } from '../devices.controller';
+import { DevicesService } from '../devices.service';
 import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { DeviceStatus } from './enums/device-status.enum';
-import { DeviceType } from './enums/device-type.enum';
-import { EnergyType } from './enums/energy-type.enum';
+import { DeviceStatus } from '../enums/device-status.enum';
+import { DeviceType } from '../enums/device-type.enum';
+import { EnergyType } from '../enums/energy-type.enum';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { RolesService } from '../../users/roles/roles.service';
+import { Reflector } from '@nestjs/core';
 
 describe('DevicesController', () => {
     let controller: DevicesController;
@@ -27,6 +30,27 @@ describe('DevicesController', () => {
                         getBatchDevices: jest.fn(),
                     },
                 },
+                {
+                    provide: RolesService,
+                    useValue: {
+                        canManageRole: jest.fn().mockReturnValue(true),
+                        getRoleDetails: jest.fn().mockReturnValue({ permissions: [] }),
+                        getRoleHierarchy: jest.fn().mockReturnValue(100)
+                    }
+                },
+                {
+                    provide: RolesGuard,
+                    useValue: {
+                        canActivate: jest.fn().mockReturnValue(true)
+                    }
+                },
+                {
+                    provide: Reflector,
+                    useValue: {
+                        get: jest.fn().mockReturnValue([]),
+                        getAllAndOverride: jest.fn().mockReturnValue([])
+                    }
+                }
             ],
         }).compile();
 
@@ -78,14 +102,15 @@ describe('DevicesController', () => {
                 }
             ];
 
-            const queryParams = { type: DeviceType.TRUCK };
+            const mockUser = { roles: ['admin'] };
+            const req = { user: mockUser };
 
             jest.spyOn(service, 'findAll').mockResolvedValue(mockDevices as any);
 
-            const result = await controller.findAll(queryParams);
+            const result = await controller.findAll(req);
 
             expect(result).toEqual(mockDevices);
-            expect(service.findAll).toHaveBeenCalledWith(queryParams);
+            expect(service.findAll).toHaveBeenCalledWith(mockUser);
         });
     });
 
@@ -103,7 +128,7 @@ describe('DevicesController', () => {
             const result = await controller.findOne('device-uuid', { user: mockUser });
 
             expect(result).toEqual(mockDevice);
-            expect(service.findOne).toHaveBeenCalledWith('device-uuid', { user: mockUser });
+            expect(service.findOne).toHaveBeenCalledWith('device-uuid', mockUser);
         });
 
         it('should throw NotFoundException for non-existent device', async () => {
@@ -249,4 +274,4 @@ describe('DevicesController', () => {
             }).toThrow(BadRequestException);
         });
     });
-}); 
+});

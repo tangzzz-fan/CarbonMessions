@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-import { RolesService } from './roles/roles.service';
-import { Role } from './enums/role.enum';
+import { UsersController } from '../users.controller';
+import { UsersService } from '../users.service';
+import { RolesService } from '../roles/roles.service';
+import { Role } from '../enums/role.enum';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { User } from './entities/user.entity';
+import { User } from '../entities/user.entity';
 
 describe('UsersController - Role Management', () => {
     let controller: UsersController;

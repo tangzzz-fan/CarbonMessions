@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DevicesService } from './devices.service';
-import { Device } from './entities/device.entity';
-import { UsersService } from '../users/users.service';
+import { DevicesService } from '../devices.service';
+import { Device } from '../entities/device.entity';
+import { UsersService } from '../../users/users.service';
 import { NotFoundException } from '@nestjs/common';
-import { DeviceStatus } from './enums/device-status.enum';
-import { DeviceType } from './enums/device-type.enum';
-import { EnergyType } from './enums/energy-type.enum';
+import { DeviceStatus } from '../enums/device-status.enum';
+import { DeviceType } from '../enums/device-type.enum';
+import { EnergyType } from '../enums/energy-type.enum';
+import { Role } from '../../users/enums/role.enum';
 
 describe('DevicesService', () => {
     let service: DevicesService;
@@ -20,12 +21,7 @@ describe('DevicesService', () => {
         findOne: jest.fn(),
         find: jest.fn(),
         delete: jest.fn(),
-        update: jest.fn(),
-        createQueryBuilder: jest.fn(() => ({
-            andWhere: jest.fn().mockReturnThis(),
-            leftJoinAndSelect: jest.fn().mockReturnThis(),
-            getMany: jest.fn().mockResolvedValue([]),
-        })),
+        update: jest.fn()
     };
 
     const mockUsersService = {
@@ -87,69 +83,50 @@ describe('DevicesService', () => {
     });
 
     describe('findAll', () => {
-        it('should return array of devices with filters', async () => {
-            const queryParams = {
-                name: 'Test',
-                type: DeviceType.TRUCK,
-                status: DeviceStatus.ACTIVE,
-                energyType: EnergyType.DIESEL,
-                location: 'Warehouse',
-                operatorId: 'operator-id',
-                isActive: true
-            };
-
+        it('should return array of devices for admin user', async () => {
+            const mockUser = { roles: [Role.ADMIN] };
             const mockDevices = [
                 { id: 'device-1', name: 'Test Device 1' },
                 { id: 'device-2', name: 'Test Device 2' }
             ];
 
-            const queryBuilder = {
-                andWhere: jest.fn().mockReturnThis(),
-                leftJoinAndSelect: jest.fn().mockReturnThis(),
-                getMany: jest.fn().mockResolvedValue(mockDevices)
-            };
-            mockDeviceRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+            mockDeviceRepository.find.mockResolvedValue(mockDevices);
 
-            const result = await service.findAll(queryParams);
+            const result = await service.findAll(mockUser);
 
             expect(result).toEqual(mockDevices);
-            expect(mockDeviceRepository.createQueryBuilder).toHaveBeenCalledWith('device');
-            expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('device.operator', 'user');
-
-            if (queryParams.name) {
-                expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-                    'device.name LIKE :name',
-                    { name: `%${queryParams.name}%` }
-                );
-            }
-            if (queryParams.type) {
-                expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-                    'device.type = :type',
-                    { type: queryParams.type }
-                );
-            }
-            if (queryParams.status) {
-                expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-                    'device.status = :status',
-                    { status: queryParams.status }
-                );
-            }
+            expect(mockDeviceRepository.find).toHaveBeenCalled();
         });
 
-        it('should return empty array when no devices found', async () => {
-            const queryParams = {};
-            const queryBuilder = {
-                andWhere: jest.fn().mockReturnThis(),
-                leftJoinAndSelect: jest.fn().mockReturnThis(),
-                getMany: jest.fn().mockResolvedValue([])
-            };
-            mockDeviceRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+        it('should return user devices for normal user', async () => {
+            const mockUser = { roles: [Role.USER], id: 'user-1' };
+            const mockDevices = [
+                { id: 'device-1', name: 'Test Device 1', operatorId: 'user-1' }
+            ];
 
-            const result = await service.findAll(queryParams);
+            mockDeviceRepository.find.mockResolvedValue(mockDevices);
 
-            expect(result).toEqual([]);
-            expect(mockDeviceRepository.createQueryBuilder).toHaveBeenCalledWith('device');
-            expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith('device.operator', 'user');
+            const result = await service.findAll(mockUser);
+
+            expect(result).toEqual(mockDevices);
+            expect(mockDeviceRepository.find).toHaveBeenCalledWith({
+                where: { operatorId: mockUser.id }
+            });
+        });
+
+        it('should return public devices for guest user', async () => {
+            const mockDevices = [
+                { id: 'device-1', name: 'Test Device 1', visibility: 'public' }
+            ];
+
+            mockDeviceRepository.find.mockResolvedValue(mockDevices);
+
+            const result = await service.findAll();
+
+            expect(result).toEqual(mockDevices);
+            expect(mockDeviceRepository.find).toHaveBeenCalledWith({
+                where: { visibility: 'public' }
+            });
         });
     });
 
@@ -242,4 +219,4 @@ describe('DevicesService', () => {
             );
         });
     });
-}); 
+});

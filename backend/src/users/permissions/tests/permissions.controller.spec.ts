@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PermissionsController } from './permissions.controller';
-import { PERMISSIONS, ROLE_PERMISSIONS } from '../constants/permissions.constant';
+import { PermissionsController } from '../permissions.controller';
+import { PERMISSIONS, ROLE_PERMISSIONS } from '../../constants/permissions.constant';
+import { RolesService } from '../../roles/roles.service';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Reflector } from '@nestjs/core';
+import { PermissionsService } from '../permissions.service';
 
 describe('PermissionsController', () => {
     let controller: PermissionsController;
@@ -8,6 +12,30 @@ describe('PermissionsController', () => {
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [PermissionsController],
+            providers: [
+                PermissionsService,
+                {
+                    provide: RolesService,
+                    useValue: {
+                        canManageRole: jest.fn().mockReturnValue(true),
+                        getRoleDetails: jest.fn().mockReturnValue({ permissions: [] }),
+                        getRoleHierarchy: jest.fn().mockReturnValue(100)
+                    }
+                },
+                {
+                    provide: RolesGuard,
+                    useValue: {
+                        canActivate: jest.fn().mockReturnValue(true)
+                    }
+                },
+                {
+                    provide: Reflector,
+                    useValue: {
+                        get: jest.fn().mockReturnValue([]),
+                        getAllAndOverride: jest.fn().mockReturnValue([])
+                    }
+                }
+            ],
         }).compile();
 
         controller = module.get<PermissionsController>(PermissionsController);
@@ -66,4 +94,4 @@ describe('PermissionsController', () => {
             expect(description).toBe(unknownPerm);
         });
     });
-}); 
+});

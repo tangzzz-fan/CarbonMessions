@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RolesService } from './roles.service';
-import { Role } from '../enums/role.enum';
-import { ROLE_PERMISSIONS } from '../constants/permissions.constant';
+import { RolesService } from '../roles.service';
+import { Role } from '../../enums/role.enum';
+import { ROLE_PERMISSIONS } from '../../constants/permissions.constant';
 
 describe('RolesService', () => {
     let service: RolesService;

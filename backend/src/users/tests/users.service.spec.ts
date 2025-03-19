@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { UsersService } from '../users.service';
+import { User } from '../entities/user.entity';
 import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Role } from './enums/role.enum';
+import { Role } from '../enums/role.enum';
 
 // 模拟bcrypt
 jest.mock('bcrypt', () => ({
