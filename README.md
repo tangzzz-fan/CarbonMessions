@@ -21,22 +21,25 @@ graph TD
 - 部署：Docker、Docker Compose
 
 ### 组件说明
-- 前端 1
+#### [前端架构设计文档](./frontend/README.md)
 前端基于React框架开发，提供直观的用户界面，包括用户认证、设备管理、数据展示、报表分析及预测结果可视化等功能。
 主要特点：
  - 响应式设计，适配多种设备
  - 实时数据展示和分析图表
  - 主题定制和多语言支持
  - 用户权限管理
-- 后端 2
+
+#### [后端架构设计文档](./backend/README.md)
 后端使用NestJS框架开发，提供RESTful API接口，实现业务逻辑处理，数据持久化和安全认证。
+
 主要功能：
  - 用户认证与授权
  - 设备管理
  - 数据采集和处理
  - 碳排放计算
  - 与预测模块交互
-- 预测模块 3
+
+#### [预测模块架构设计文档](./prediction/README.md)
 基于Python开发的机器学习服务，根据历史数据和环境因素预测未来碳排放趋势。
 主要特点：
  - 多种预测模型支持
@@ -50,7 +53,8 @@ graph TD
  - Python (v3.8+)
  - Docker 和 Docker Compose
  - Git
-- 快速开始
+
+#### 快速开始
 1. 克隆仓库
 
 ```bash
@@ -116,13 +120,7 @@ project-root/
 
 ## 部署
 
-系统支持Docker容器化部署，详细部署指南请参考各组件的文档：
-
-- [前端部署指南](./frontend/README.md#部署)
-- [后端部署指南](./backend/README.md#部署)
-- [预测模块部署指南](./prediction/README.md#部署)
-
-对于完整系统部署，可使用项目根目录中的`docker-compose.yml`：
+系统支持Docker容器化部署，对于完整系统部署，可使用项目根目录中的`docker-compose.yml`：
 
 ```bash
 # 生产环境部署
