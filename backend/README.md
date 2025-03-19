@@ -135,25 +135,114 @@ npm run test:watch
 http://localhost:3000/api/docs
 ```
 
-## Docker环境
+## Docker环境配置
 
-可以使用Docker Compose来运行PostgreSQL数据库：
+本项目提供了完整的Docker配置，支持开发环境和生产环境的快速搭建。
+
+### 开发环境配置
+
+开发环境使用`docker-compose.dev.yml`配置文件，包含NestJS应用和PostgreSQL数据库服务。
+
+#### 方式一：使用开发脚本
+
+最简单的方式是使用项目提供的开发脚本：
 
 ```bash
-# 启动数据库容器
-npm run docker:up
-
-# 停止数据库容器
-npm run docker:down
-
-# 检查容器状态
-docker ps
+# 一键启动开发环境（包含数据库和应用）
+npm run dev
 ```
 
-如果看不到PostgreSQL容器，请重新启动：
+该脚本会：
+1. 设置NODE_ENV=dev环境变量
+2. 启动PostgreSQL容器
+3. 等待数据库就绪
+4. 启动NestJS应用（热重载模式）
+
+#### 方式二：分步启动
+
+如果需要更精细的控制，可以分步启动：
 
 ```bash
-npm run docker:up
+# 仅启动数据库容器
+docker-compose -f docker-compose.dev.yml up -d postgres
+
+# 启动NestJS应用（本地开发模式）
+npm run start:dev
+
+# 或启动完整开发环境（包含NestJS容器）
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+#### 开发环境特性
+
+- 代码热重载：修改代码后自动重启应用
+- 卷挂载：本地代码变更实时同步到容器
+- 独立的开发数据库：使用`carbon_emission_dev`数据库
+- 预配置的环境变量：JWT密钥、数据库连接等
+
+### 生产环境配置
+
+生产环境使用`docker-compose.yml`配置文件，专注于提供稳定的数据库服务。
+
+```bash
+# 启动生产环境数据库
+docker-compose up -d
+
+# 停止生产环境服务
+docker-compose down
+```
+
+生产环境配置包含：
+
+- PostgreSQL数据库服务
+- pgAdmin管理工具（可选，访问地址：http://localhost:5050）
+- 持久化数据卷
+- 自定义网络隔离
+
+### 常用Docker操作
+
+```bash
+# 查看运行中的容器
+docker ps
+
+# 查看容器日志
+docker logs carbon-emission-postgres
+
+# 进入容器内部
+docker exec -it carbon-emission-postgres bash
+
+# 重启特定容器
+docker restart carbon-emission-postgres
+```
+
+### 环境变量配置
+
+开发环境的环境变量在`docker-compose.dev.yml`中预配置，包括：
+
+- 数据库连接信息
+- JWT密钥和过期时间
+- 应用环境设置
+
+生产环境应修改这些默认值，特别是密码和密钥。
+
+### 常见问题
+
+#### 端口冲突
+
+如果5432端口被占用，可以修改docker-compose文件中的端口映射：
+
+```yaml
+ports:
+  - "5433:5432"  # 将主机5433端口映射到容器5432端口
+```
+
+#### 数据库连接问题
+
+确保在`.env.dev`文件中的数据库连接信息与Docker配置一致：
+
+```
+DB_HOST=localhost  # 本地开发时使用localhost
+DB_HOST=postgres   # Docker环境中使用服务名
 ```
 
 ## 常见问题

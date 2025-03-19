@@ -10,11 +10,12 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: carbon_emission_dev
+      POSTGRES_DB: carbon_emission
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - carbon-network
+    restart: unless-stopped
 
   # pgAdmin 管理工具 (可选)
   pgadmin:
@@ -29,6 +30,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     networks:
       - carbon-network
+    restart: unless-stopped
 
 networks:
   carbon-network:
