@@ -6,6 +6,9 @@ import { User } from '../users/entities/user.entity';
 import { Device } from '../devices/entities/device.entity';
 import * as bcrypt from 'bcrypt';
 import { Role } from '../users/enums/role.enum';
+import { DeviceStatus } from '../devices/enums/device-status.enum';
+import { DeviceType } from '../devices/enums/device-type.enum';
+import { EnergyType } from '../devices/enums/energy-type.enum';
 
 @ApiTags('数据库初始化')
 @Controller('db-init')
@@ -126,74 +129,220 @@ export class DbInitController {
     @ApiResponse({ status: 201, description: '设备数据初始化成功' })
     async initDevices() {
         try {
-            // 删除所有现有设备（谨慎使用，仅用于开发环境）
-            await this.dataSource.createQueryBuilder().delete().from(Device).execute();
+            // 检查是否已存在设备
+            const deviceCount = await this.dataSource
+                .createQueryBuilder()
+                .select('COUNT(*)')
+                .from(Device, 'device')
+                .getRawOne();
 
-            // 定义不同类型的设备
+            if (parseInt(deviceCount.count) > 0) {
+                return {
+                    message: '设备数据已存在，跳过初始化',
+                    count: parseInt(deviceCount.count),
+                    timestamp: new Date(),
+                };
+            }
+
+            // 首先获取操作员列表
+            const operators = await this.dataSource
+                .createQueryBuilder()
+                .select(['id'])
+                .from(User, 'user')
+                .where('user.role = :role', { role: Role.OPERATOR })
+                .limit(3)
+                .getRawMany();
+
+            // 获取管理员列表
+            const managers = await this.dataSource
+                .createQueryBuilder()
+                .select(['id'])
+                .from(User, 'user')
+                .where('user.role = :role', { role: Role.MANAGER })
+                .limit(3)
+                .getRawMany();
+
+            // 如果没有足够的操作员和管理员，创建一些临时用户ID
+            const operatorIds = operators.length > 0
+                ? operators.map(op => op.id)
+                : ['default-operator-1', 'default-operator-2'];
+
+            const managerIds = managers.length > 0
+                ? managers.map(m => m.id)
+                : ['default-manager-1', 'default-manager-2'];
+
+            // 定义测试设备数据，使用枚举类型确保类型匹配
             const devices = [
+                // 卡车类设备
                 {
-                    name: '物流卡车-01',
-                    type: 'truck',
-                    location: '装卸区A',
-                    status: 'online',
+                    name: '卡车 A001',
+                    description: '物流运输卡车',
+                    type: DeviceType.TRUCK,
+                    status: DeviceStatus.ACTIVE,
+                    location: '园区入口',
+                    manufacturer: '重型卡车制造商',
+                    model: 'HT-100',
+                    serialNumber: 'TRK-A001',
+                    energyType: EnergyType.DIESEL,
+                    emissionFactor: 2.3,
+                    operatorId: operatorIds[0] || null
                 },
                 {
-                    name: '物流卡车-02',
-                    type: 'truck',
-                    location: '运输路线B',
-                    status: 'offline',
+                    name: '卡车 A002',
+                    description: '城际配送卡车',
+                    type: DeviceType.TRUCK,
+                    status: DeviceStatus.ACTIVE,
+                    location: '配送中心',
+                    manufacturer: '中型卡车制造商',
+                    model: 'MT-200',
+                    serialNumber: 'TRK-A002',
+                    energyType: EnergyType.DIESEL,
+                    emissionFactor: 1.8,
+                    operatorId: operatorIds[0] || null
                 },
                 {
-                    name: '叉车-01',
-                    type: 'forklift',
-                    location: '仓库A',
-                    status: 'online',
+                    name: '卡车 A003',
+                    description: '长途运输卡车',
+                    type: DeviceType.TRUCK,
+                    status: DeviceStatus.MAINTENANCE,
+                    location: '维修车间',
+                    manufacturer: '重型卡车制造商',
+                    model: 'HT-150',
+                    serialNumber: 'TRK-A003',
+                    energyType: EnergyType.CNG,
+                    emissionFactor: 1.5,
+                    operatorId: operatorIds[1] || null
+                },
+
+                // 叉车类设备
+                {
+                    name: '叉车 F001',
+                    description: '货物装卸叉车',
+                    type: DeviceType.FORKLIFT,
+                    status: DeviceStatus.ACTIVE,
+                    location: '仓库A区',
+                    manufacturer: '叉车制造商',
+                    model: 'FL-50',
+                    serialNumber: 'FL-F001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 1.2,
+                    operatorId: operatorIds[1] || null
                 },
                 {
-                    name: '叉车-02',
-                    type: 'forklift',
-                    location: '仓库B',
-                    status: 'maintenance',
+                    name: '叉车 F002',
+                    description: '重型叉车',
+                    type: DeviceType.FORKLIFT,
+                    status: DeviceStatus.ACTIVE,
+                    location: '仓库B区',
+                    manufacturer: '叉车制造商',
+                    model: 'FL-100',
+                    serialNumber: 'FL-F002',
+                    energyType: EnergyType.DIESEL,
+                    emissionFactor: 1.7,
+                    operatorId: operatorIds[0] || null
                 },
                 {
-                    name: '冷藏设备-01',
-                    type: 'refrigeration',
-                    location: '冷库A',
-                    status: 'online',
+                    name: '叉车 F003',
+                    description: '电动微型叉车',
+                    type: DeviceType.FORKLIFT,
+                    status: DeviceStatus.STANDBY,
+                    location: '仓库C区',
+                    manufacturer: '小型设备制造商',
+                    model: 'MFL-20',
+                    serialNumber: 'FL-F003',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 0.8,
+                    operatorId: operatorIds[2] || null
+                },
+
+                // 包装设备
+                {
+                    name: '包装机 P001',
+                    description: '自动化包装设备',
+                    type: DeviceType.PACKAGING,
+                    status: DeviceStatus.STANDBY,
+                    location: '包装车间',
+                    manufacturer: '包装设备制造商',
+                    model: 'PKG-200',
+                    serialNumber: 'PKG-P001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 1.0,
+                    operatorId: managerIds[0] || null
                 },
                 {
-                    name: '包装机-01',
-                    type: 'packaging',
-                    location: '包装区A',
-                    status: 'online',
+                    name: '包装机 P002',
+                    description: '高速自动包装线',
+                    type: DeviceType.PACKAGING,
+                    status: DeviceStatus.ACTIVE,
+                    location: '包装车间',
+                    manufacturer: '包装设备制造商',
+                    model: 'PKG-350',
+                    serialNumber: 'PKG-P002',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 1.2,
+                    operatorId: managerIds[0] || null
+                },
+
+                // 制冷设备
+                {
+                    name: '冷库 R001',
+                    description: '大型冷藏库',
+                    type: DeviceType.REFRIGERATION,
+                    status: DeviceStatus.ACTIVE,
+                    location: '冷藏区',
+                    manufacturer: '制冷设备制造商',
+                    model: 'CLR-500',
+                    serialNumber: 'RF-R001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 2.5,
+                    operatorId: managerIds[1] || null
+                },
+
+                // 照明设备
+                {
+                    name: '照明系统 L001',
+                    description: '仓库LED照明',
+                    type: DeviceType.LIGHTING,
+                    status: DeviceStatus.ACTIVE,
+                    location: '仓库A区',
+                    manufacturer: '照明设备制造商',
+                    model: 'LED-PRO',
+                    serialNumber: 'LT-L001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 0.5,
+                    operatorId: null
+                },
+
+                // 其他类型设备
+                {
+                    name: '空调系统 A001',
+                    description: '办公区中央空调',
+                    type: DeviceType.OTHER,
+                    status: DeviceStatus.ACTIVE,
+                    location: '办公大楼',
+                    manufacturer: '空调制造商',
+                    model: 'AC-2000',
+                    serialNumber: 'AC-A001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 1.8,
+                    operatorId: null
                 },
                 {
-                    name: '传送带-01',
-                    type: 'conveyor',
-                    location: '分拣区A',
-                    status: 'offline',
-                },
-                {
-                    name: '空调系统-01',
-                    type: 'hvac',
-                    location: '办公区A',
-                    status: 'online',
-                },
-                {
-                    name: '照明系统-01',
-                    type: 'lighting',
-                    location: '仓库A',
-                    status: 'online',
-                },
-                {
-                    name: '发电机-01',
-                    type: 'generator',
-                    location: '后备电源室',
-                    status: 'standby',
-                },
+                    name: '传送带 C001',
+                    description: '自动分拣传送带',
+                    type: DeviceType.OTHER,
+                    status: DeviceStatus.INACTIVE,
+                    location: '分拣中心',
+                    manufacturer: '物流设备制造商',
+                    model: 'CNV-100',
+                    serialNumber: 'CNV-C001',
+                    energyType: EnergyType.ELECTRICITY,
+                    emissionFactor: 1.1,
+                    operatorId: operatorIds[2] || null
+                }
             ];
 
-            // 插入设备
+            // 插入设备数据
             const result = await this.dataSource
                 .createQueryBuilder()
                 .insert()
@@ -202,15 +351,15 @@ export class DbInitController {
                 .execute();
 
             return {
-                status: 'success',
-                message: `成功创建 ${result.identifiers.length} 个设备`,
-                devices,
+                message: '设备数据初始化成功',
+                count: result.identifiers.length,
+                timestamp: new Date(),
             };
         } catch (error) {
             return {
-                status: 'error',
-                message: '初始化设备数据失败',
+                message: '设备数据初始化失败',
                 error: error.message,
+                timestamp: new Date(),
             };
         }
     }
