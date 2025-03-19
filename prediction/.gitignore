@@ -1,0 +1,90 @@
+# 字节编译/优化文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C扩展
+*.so
+
+# 分发/打包
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# 安装日志
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 单元测试/覆盖率报告
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 环境
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# 模型文件和数据
+*.h5
+*.pkl
+*.model
+/data
+/models
+/datasets
+*.csv
+*.xlsx
+*.xls
+!requirements.txt
+!sample_data/*.csv
+
+# 日志
+*.log
+
+# IDE特定文件
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db 
