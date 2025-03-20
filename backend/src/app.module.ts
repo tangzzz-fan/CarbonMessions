@@ -9,6 +9,7 @@ import { EmissionModule } from './emission/emission.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { TokenRefreshMiddleware } from './auth/middleware/token-refresh.middleware';
+import { MockIotModule } from './mock-iot/mock-iot.module';
 
 @Module({
     imports: [
@@ -43,6 +44,9 @@ import { TokenRefreshMiddleware } from './auth/middleware/token-refresh.middlewa
         PredictionModule,
         EmissionModule,
         HealthModule,
+
+        // 仅在开发环境中导入模拟IoT模块
+        ...(process.env.NODE_ENV !== 'production' ? [MockIotModule] : []),
     ],
 })
 
