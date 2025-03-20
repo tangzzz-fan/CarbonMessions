@@ -4,6 +4,7 @@ import { User } from '../../users/entities/user.entity';
 import { DeviceStatus } from '../enums/device-status.enum';
 import { DeviceType } from '../enums/device-type.enum';
 import { EnergyType } from '../enums/energy-type.enum';
+import { ConnectionType } from '../enums/connection-type.enum';
 
 @Entity('devices')
 export class Device {
@@ -15,6 +16,9 @@ export class Device {
 
     @Column({ nullable: true })
     description: string;
+
+    @Column({ nullable: true })
+    deviceId: string;
 
     @Column({
         type: 'enum',
@@ -57,6 +61,31 @@ export class Device {
 
     @Column({ type: 'float', default: 1.0 })
     emissionFactor: number;
+
+    @Column({ type: 'float', nullable: true })
+    powerRating: number;
+
+    @Column({ type: 'float', nullable: true })
+    operatingVoltage: number;
+
+    @Column({ type: 'float', nullable: true })
+    operatingCurrent: number;
+
+    @Column({ nullable: true })
+    fuelType: string;
+
+    @Column({ type: 'float', nullable: true })
+    capacity: number;
+
+    @Column({ nullable: true })
+    unit: string;
+
+    @Column({
+        type: 'enum',
+        enum: ConnectionType,
+        default: ConnectionType.NONE
+    })
+    connectionType: ConnectionType;
 
     @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'operator_id' })
