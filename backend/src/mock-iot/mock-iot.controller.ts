@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Logger, Query, Param, Put, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { MockIotService } from './mock-iot.service';
 import { SimulationConfig } from './interfaces/simulation-config.interface';
@@ -77,5 +77,30 @@ export class MockIotController {
             count ? parseInt(count.toString()) : 10,
             interval ? parseInt(interval.toString()) : 1000
         );
+    }
+
+    @Get()
+    async getAllDeviceData() {
+        return this.mockIotService.getAllDeviceData();
+    }
+
+    @Get(':id')
+    async getDeviceDataById(@Param('id') id: string) {
+        return this.mockIotService.getDeviceDataById(id);
+    }
+
+    @Post()
+    async createDeviceData(@Body() deviceData: any) {
+        return this.mockIotService.createDeviceData(deviceData);
+    }
+
+    @Put(':id')
+    async updateDeviceData(@Param('id') id: string, @Body() deviceData: any) {
+        return this.mockIotService.updateDeviceData(id, deviceData);
+    }
+
+    @Delete(':id')
+    async deleteDeviceData(@Param('id') id: string) {
+        return this.mockIotService.deleteDeviceData(id);
     }
 } 

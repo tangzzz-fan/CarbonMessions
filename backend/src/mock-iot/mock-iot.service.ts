@@ -270,4 +270,47 @@ export class MockIotService implements OnModuleInit {
             filePath: this.csvFilePath
         };
     }
+
+    // 添加此方法以解决测试错误
+    async getAllDeviceData() {
+        // 返回所有设备数据
+        return this.mockData;
+    }
+
+    // 添加此方法以解决测试错误
+    async getDeviceDataById(id: string) {
+        // 查找并返回指定ID的设备数据
+        return this.mockData.find(device => device.id === id) || null;
+    }
+
+    // 添加创建设备数据方法
+    async createDeviceData(deviceData: any) {
+        // 实现创建设备数据的逻辑
+        const newDevice = { ...deviceData, id: Date.now().toString() };
+        this.mockData.push(newDevice);
+        return newDevice;
+    }
+
+    // 添加更新设备数据方法
+    async updateDeviceData(id: string, deviceData: any) {
+        // 实现更新设备数据的逻辑
+        const index = this.mockData.findIndex(device => device.id === id);
+        if (index !== -1) {
+            this.mockData[index] = { ...this.mockData[index], ...deviceData };
+            return this.mockData[index];
+        }
+        return null;
+    }
+
+    // 添加删除设备数据方法
+    async deleteDeviceData(id: string) {
+        // 实现删除设备数据的逻辑
+        const index = this.mockData.findIndex(device => device.id === id);
+        if (index !== -1) {
+            const deletedDevice = this.mockData[index];
+            this.mockData.splice(index, 1);
+            return deletedDevice;
+        }
+        return null;
+    }
 } 
