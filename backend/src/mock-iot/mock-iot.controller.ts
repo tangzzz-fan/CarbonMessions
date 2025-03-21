@@ -289,7 +289,7 @@ export class MockIotController {
     @ApiOperation({ summary: '查询模拟任务状态' })
     @ApiResponse({ status: 200, description: '返回任务状态' })
     getTaskStatus(@Param('taskId') taskId: string) {
-        return this.scenarioGenerator.getTaskStatus(taskId);
+        return this.timeSeriesGenerator.getTaskStatus(taskId);
     }
 
     // 添加查询所有任务的端点
@@ -297,7 +297,7 @@ export class MockIotController {
     @ApiOperation({ summary: '查询所有模拟任务' })
     @ApiResponse({ status: 200, description: '返回所有模拟任务' })
     getAllTasks() {
-        return this.scenarioGenerator.getAllTasks();
+        return this.timeSeriesGenerator.getAllTasks();
     }
 
     // 添加时间序列数据生成端点
