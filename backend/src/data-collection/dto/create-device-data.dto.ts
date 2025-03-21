@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsNumber, IsString, IsUUID } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsString, IsUUID, IsOptional, IsObject } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDeviceDataDto {
     @ApiProperty({
@@ -25,4 +25,13 @@ export class CreateDeviceDataDto {
     @IsString()
     @IsNotEmpty()
     type: string;
+
+    @ApiPropertyOptional({
+        description: '附加元数据信息',
+        type: 'object',
+        example: { status: 'active', timePattern: 'workday_peak' }
+    })
+    @IsOptional()
+    @IsObject()
+    metadata?: Record<string, any>;
 } 

@@ -10,5 +10,22 @@ export enum DeviceType {
     REFRIGERATION = 'refrigeration', // 制冷设备
     HVAC = 'hvac',               // 暖通空调
     LIGHTING = 'lighting',       // 照明系统
-    OTHER = 'other'              // 其他
+    OTHER = 'other',
+    SENSOR = 'SENSOR',
+    ACTUATOR = 'ACTUATOR',
+    CONTROLLER = 'CONTROLLER',
+    GATEWAY = 'GATEWAY',
+    GATE = 'GATE',                     // 门禁/闸机
+    WEIGHT_SCALE = 'WEIGHT_SCALE',     // 称重设备
+    CAMERA = 'CAMERA',                 // 摄像头
+    LOADER = 'LOADER',                 // 装载机
+    CHARGING_STATION = 'CHARGING_STATION', // 充电站
+    SECURITY = 'SECURITY',             // 安防设备
+    CARBON_SENSOR = 'carbon_sensor',           // 碳排放监测传感器
+    ENERGY_METER = 'energy_meter',             // 智能电能表
+    GAS_METER = 'gas_meter',                   // 燃气表
+    AIR_QUALITY_MONITOR = 'air_quality_monitor', // 空气质量监测器
+    EMISSIONS_ANALYZER = 'emissions_analyzer',   // 尾气分析仪
+    SOLAR_PANEL = 'solar_panel',               // 太阳能电池板（减排设备）
+    SMART_GRID = 'smart_grid',                 // 智能电网连接设备
 } 

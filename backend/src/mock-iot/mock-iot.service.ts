@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +14,7 @@ import { EnergyType } from '../devices/enums/energy-type.enum';
 import { ConnectionType } from '../devices/enums/connection-type.enum';
 import { Role } from '../users/enums/role.enum';
 import { MockDeviceGeneratorService } from './services/mock-device-generator.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class MockIotService implements OnModuleInit {
@@ -21,8 +22,8 @@ export class MockIotService implements OnModuleInit {
     private readonly csvFilePath: string;
     private mockData: any[] = [];
     private deviceMapping: Map<string, string> = new Map(); // 映射设备标识到设备ID
-    private simulationActive = false; // 是否正在进行模拟
-    private simulationIntervalId: NodeJS.Timeout | null = null; // 模拟定时器ID
+    private simulationActive = false;
+    private simulationIntervalId: NodeJS.Timeout | null = null; // 统一使用一个定时器引用
     private simulationConfig: SimulationConfig = {
         interval: 5000, // 默认发送间隔5秒
         devicesPerInterval: 3, // 默认每次发送3个设备数据
@@ -371,7 +372,15 @@ export class MockIotService implements OnModuleInit {
                         // 添加其他属性
                         newDevice['location'] = '随机';
 
-                        await this.devicesService.create(newDevice);
+                        await this.devicesService.create({
+                            name: newDevice.name || `模拟设备 ${newDevice.deviceId}`,
+                            description: newDevice.description || '从CSV文件自动导入的设备',
+                            type: newDevice.type,
+                            status: DeviceStatus.ACTIVE,
+                            serialNumber: newDevice.deviceId,
+                            energyType: newDevice.energyType || EnergyType.ELECTRICITY,
+                            emissionFactor: newDevice.emissionFactor
+                        });
                         created++;
                     }
                 } catch (error) {
@@ -389,6 +398,270 @@ export class MockIotService implements OnModuleInit {
             created,
             updated,
             total: csvDeviceIds.length
+        };
+    }
+
+    /**
+     * 生成并发布随机设备数据
+     * @param options 生成随机数据的选项
+     */
+    async generateAndPublishRandomData(options: {
+        count: number;
+        deviceCount?: number;
+        dataTypes?: string[];
+        minValue?: number;
+        maxValue?: number;
+    }): Promise<{ message: string, count: number, devices: string[] }> {
+        // 默认设置
+        const count = options.count || 5;
+        const minValue = options.minValue !== undefined ? options.minValue : 0;
+        const maxValue = options.maxValue !== undefined ? options.maxValue : 100;
+        const defaultDataTypes = ['power_consumption', 'temperature', 'humidity', 'fuel_level'];
+        const dataTypes = options.dataTypes || defaultDataTypes;
+
+        // 确保设备映射已加载
+        if (this.deviceMapping.size === 0) {
+            await this.loadDeviceMapping();
+        }
+
+        // 如果没有设备，直接返回
+        if (this.deviceMapping.size === 0) {
+            return {
+                message: '没有可用的设备',
+                count: 0,
+                devices: []
+            };
+        }
+
+        // 获取所有设备ID
+        const allDeviceIds = Array.from(this.deviceMapping.keys());
+
+        // 选择使用的设备数量
+        const useDeviceCount = options.deviceCount ?
+            Math.min(options.deviceCount, allDeviceIds.length) :
+            allDeviceIds.length;
+
+        // 随机选择设备
+        const selectedDevices = this.getRandomElements(allDeviceIds, useDeviceCount);
+
+        // 记录已发送数据的设备
+        const usedDevices = new Set<string>();
+
+        // 生成并发送随机数据
+        for (let i = 0; i < count; i++) {
+            // 随机选择一个设备
+            const deviceIdentifier = this.getRandomElement(selectedDevices);
+            const deviceId = this.deviceMapping.get(deviceIdentifier);
+
+            if (deviceId) {
+                // 随机选择一个数据类型
+                const dataType = this.getRandomElement(dataTypes);
+
+                // 生成随机值
+                const value = this.getRandomNumber(minValue, maxValue);
+
+                // 创建设备数据DTO
+                const deviceDataDto: CreateDeviceDataDto = {
+                    deviceId,
+                    type: dataType,
+                    value
+                };
+
+                // 发送数据
+                try {
+                    await this.dataCollectionService.create(deviceDataDto);
+                    usedDevices.add(deviceIdentifier);
+                    this.logger.debug(`已发送随机生成的设备数据: 设备=${deviceIdentifier}, 类型=${dataType}, 值=${value}`);
+                } catch (error) {
+                    this.logger.error(`发送随机数据失败: ${error.message}`);
+                }
+            }
+        }
+
+        return {
+            message: `成功生成并发送${count}条随机设备数据`,
+            count: count,
+            devices: Array.from(usedDevices)
+        };
+    }
+
+    /**
+     * 从数组中随机获取一个元素
+     */
+    private getRandomElement<T>(array: T[]): T {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    /**
+     * 从数组中随机获取指定数量的元素
+     */
+    private getRandomElements<T>(array: T[], count: number): T[] {
+        const shuffled = [...array].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    }
+
+    /**
+     * 生成指定范围内的随机数
+     */
+    private getRandomNumber(min: number, max: number): number {
+        return Math.round((Math.random() * (max - min) + min) * 100) / 100;
+    }
+
+    // 将startMockDataSending重构为使用统一的状态管理
+    startMockDataSending(interval: number = 5000, devicesPerInterval: number = 3, randomize: boolean = true): string {
+        // 确保参数是有效的正数
+        if (isNaN(interval) || interval <= 0) {
+            interval = 5000;
+        }
+
+        if (isNaN(devicesPerInterval) || devicesPerInterval <= 0) {
+            devicesPerInterval = 3;
+        }
+
+        // 停止之前正在运行的计时器（通过统一的停止方法）
+        this.stopSimulation();
+
+        // 标记为活跃状态
+        this.simulationActive = true;
+
+        // 启动新的定时发送
+        this.simulationIntervalId = setInterval(() => {
+            this.sendBatchData(devicesPerInterval);
+        }, interval);
+
+        this.logger.log(`开始模拟数据发送: 每${interval}ms发送${devicesPerInterval}条数据`);
+        return `开始模拟数据发送: 每${interval}ms发送${devicesPerInterval}条数据`;
+    }
+
+    // 删除重复的停止方法，使用统一的stopSimulation
+    stopMockDataSending(): void {
+        this.stopSimulation();
+    }
+
+    /**
+     * 生成碳排放监测设备
+     * 提供对设备生成器的公共访问方法
+     */
+    async generateCarbonMonitoringDevices() {
+        return this.deviceGenerator.generateCarbonMonitoringDevices();
+    }
+
+    /**
+     * 获取所有模拟设备
+     */
+    getAllMockDevices() {
+        return {
+            success: true,
+            devices: this.mockData,
+            count: this.mockData.length
+        };
+    }
+
+    /**
+     * 创建新的模拟设备
+     * @param deviceData 设备数据
+     */
+    async createMockDevice(deviceData: any) {
+        // 验证设备数据
+        if (!deviceData.deviceId || !deviceData.type) {
+            throw new BadRequestException('设备ID和类型是必需的');
+        }
+
+        // 添加时间戳和ID
+        const newDevice = {
+            ...deviceData,
+            id: uuidv4(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+
+        // 添加到模拟数据
+        this.mockData.push(newDevice);
+
+        // 尝试在数据库中创建设备
+        try {
+            await this.devicesService.create({
+                name: newDevice.name || `模拟设备 ${newDevice.deviceId}`,
+                description: newDevice.description || '通过API创建的模拟设备',
+                type: newDevice.type,
+                status: DeviceStatus.ACTIVE,
+                serialNumber: newDevice.deviceId,
+                energyType: newDevice.energyType || EnergyType.ELECTRICITY,
+                emissionFactor: newDevice.emissionFactor
+            });
+            this.logger.log(`成功在数据库中创建设备: ${newDevice.deviceId}`);
+        } catch (error) {
+            this.logger.warn(`无法在数据库中创建设备: ${error.message}`);
+        }
+
+        return {
+            success: true,
+            device: newDevice,
+            message: '设备创建成功'
+        };
+    }
+
+    /**
+     * 获取指定的模拟设备
+     * @param id 设备ID
+     */
+    getMockDeviceById(id: string) {
+        const device = this.mockData.find(d => d.id === id || d.deviceId === id);
+
+        if (!device) {
+            throw new NotFoundException(`未找到ID为${id}的设备`);
+        }
+
+        return {
+            success: true,
+            device
+        };
+    }
+
+    /**
+     * 更新指定的模拟设备
+     * @param id 设备ID
+     * @param updateData 更新数据
+     */
+    updateMockDevice(id: string, updateData: any) {
+        const index = this.mockData.findIndex(d => d.id === id || d.deviceId === id);
+
+        if (index === -1) {
+            throw new NotFoundException(`未找到ID为${id}的设备`);
+        }
+
+        // 更新数据
+        this.mockData[index] = {
+            ...this.mockData[index],
+            ...updateData,
+            updatedAt: new Date()
+        };
+
+        return {
+            success: true,
+            device: this.mockData[index],
+            message: '设备更新成功'
+        };
+    }
+
+    /**
+     * 删除指定的模拟设备
+     * @param id 设备ID
+     */
+    deleteMockDevice(id: string) {
+        const index = this.mockData.findIndex(d => d.id === id || d.deviceId === id);
+
+        if (index === -1) {
+            throw new NotFoundException(`未找到ID为${id}的设备`);
+        }
+
+        // 删除设备
+        const deletedDevice = this.mockData.splice(index, 1)[0];
+
+        return {
+            success: true,
+            device: deletedDevice,
+            message: '设备删除成功'
         };
     }
 } 

@@ -1,25 +1,107 @@
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { MockIotController } from './mock-iot.controller';
 import { MockIotService } from './mock-iot.service';
-
-// 使用jest.mock()直接模拟依赖服务
-jest.mock('./mock-iot.service');
+import { TimePatternGeneratorService } from './services/time-pattern-generator.service';
+import { MockDeviceGeneratorService } from './services/mock-device-generator.service';
+import { TimeSeriesGeneratorService } from './services/time-series-generator.service';
+import { ScenarioGeneratorService } from './services/scenario-generator.service';
+import { ConfigService } from '@nestjs/config';
+import { QueueService } from '../data-collection/queue/queue.service';
+import { DevicesService } from '../devices/devices.service';
+import { DataCollectionService } from '../data-collection/data-collection.service';
 
 describe('MockIotController', () => {
     let controller: MockIotController;
-    let service: MockIotService;
+    let mockIotService: MockIotService;
 
     beforeEach(async () => {
-        // 清除所有模拟的实现和实例
         jest.clearAllMocks();
+
+        // 创建所有依赖的模拟
+        const mockScenarioGeneratorService = {
+            runScenario: jest.fn(),
+            getScenarios: jest.fn().mockReturnValue([]),
+            getActiveScenarios: jest.fn().mockReturnValue([]),
+        };
+
+        const mockTimePatternGeneratorService = {
+            generateTimePatterns: jest.fn(),
+        };
+
+        const mockDeviceGeneratorService = {
+            generateCarbonMonitoringDevices: jest.fn(),
+            createBaseDevice: jest.fn(),
+        };
+
+        const mockTimeSeriesGeneratorService = {
+            generateTimeSeries: jest.fn(),
+        };
+
+        const mockQueueService = {
+            sendToProcessingQueue: jest.fn(),
+            sendToPredictionQueue: jest.fn(),
+        };
+
+        const mockDevicesService = {
+            findAll: jest.fn().mockResolvedValue([]),
+            findOne: jest.fn(),
+            findByDeviceId: jest.fn(),
+            create: jest.fn(),
+        };
+
+        const mockDataCollectionService = {
+            create: jest.fn(),
+        };
+
+        const mockConfigService = {
+            get: jest.fn().mockImplementation((key) => {
+                // 根据需要返回默认配置
+                if (key === 'MOCK_IOT_CSV_PATH') return './mock_data/test.csv';
+                return null;
+            }),
+        };
 
         const moduleRef = await Test.createTestingModule({
             controllers: [MockIotController],
-            providers: [MockIotService],
+            providers: [
+                MockIotService,
+                {
+                    provide: ScenarioGeneratorService,
+                    useValue: mockScenarioGeneratorService,
+                },
+                {
+                    provide: TimePatternGeneratorService,
+                    useValue: mockTimePatternGeneratorService,
+                },
+                {
+                    provide: MockDeviceGeneratorService,
+                    useValue: mockDeviceGeneratorService,
+                },
+                {
+                    provide: TimeSeriesGeneratorService,
+                    useValue: mockTimeSeriesGeneratorService,
+                },
+                {
+                    provide: ConfigService,
+                    useValue: mockConfigService,
+                },
+                {
+                    provide: QueueService,
+                    useValue: mockQueueService,
+                },
+                {
+                    provide: DevicesService,
+                    useValue: mockDevicesService,
+                },
+                {
+                    provide: DataCollectionService,
+                    useValue: mockDataCollectionService,
+                },
+            ],
         }).compile();
 
         controller = moduleRef.get<MockIotController>(MockIotController);
-        service = moduleRef.get<MockIotService>(MockIotService);
+        mockIotService = moduleRef.get<MockIotService>(MockIotService);
     });
 
     it('should be defined', () => {
@@ -28,42 +110,35 @@ describe('MockIotController', () => {
 
     describe('getAllDeviceData', () => {
         it('应该返回所有设备数据', async () => {
-            // 准备模拟数据
-            const mockDeviceData = [{ id: '1', name: 'device1', data: {} }];
+            const result = { success: true, devices: [], count: 0 };
+            const spy = jest.spyOn(mockIotService, 'getAllMockDevices').mockReturnValue(result);
 
-            // 设置模拟服务方法的返回值
-            (service.getAllDeviceData as jest.Mock).mockResolvedValue(mockDeviceData);
+            const response = await controller.getAllMockDevices();
 
-            // 调用控制器方法
-            const result = await controller.getAllDeviceData();
-
-            // 验证服务方法被调用
-            expect(service.getAllDeviceData).toHaveBeenCalled();
-
-            // 验证返回值
-            expect(result).toEqual(mockDeviceData);
+            expect(spy).toHaveBeenCalled();
+            expect(response).toEqual(result);
         });
     });
 
     describe('getDeviceDataById', () => {
         it('应该返回指定ID的设备数据', async () => {
-            // 准备模拟数据
-            const deviceId = '123';
-            const mockDeviceData = { id: deviceId, name: 'testDevice', data: {} };
+            const result = { success: true, device: { id: '1', name: 'test' } };
+            const spy = jest.spyOn(mockIotService, 'getMockDeviceById').mockReturnValue(result);
 
-            // 设置模拟服务方法的返回值
-            (service.getDeviceDataById as jest.Mock).mockResolvedValue(mockDeviceData);
+            const response = await controller.getMockDeviceById('1');
 
-            // 调用控制器方法
-            const result = await controller.getDeviceDataById(deviceId);
-
-            // 验证服务方法被调用，并且传入了正确的参数
-            expect(service.getDeviceDataById).toHaveBeenCalledWith(deviceId);
-
-            // 验证返回值
-            expect(result).toEqual(mockDeviceData);
+            expect(spy).toHaveBeenCalledWith('1');
+            expect(response).toEqual(result);
         });
     });
 
-    // 根据控制器中的其他方法添加更多测试...
+    describe('generateRandomData', () => {
+        it('应该生成并发送随机设备数据', async () => {
+            const count = 5;
+            const result = { message: '成功', count: 5, devices: [] };
+            jest.spyOn(mockIotService, 'generateAndPublishRandomData').mockResolvedValue(result);
+
+            expect(await controller.generateRandomData(count)).toBe(result);
+        });
+    });
 }); 

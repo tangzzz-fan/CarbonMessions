@@ -17,7 +17,7 @@ import { MockDeviceGeneratorService } from '../mock-iot/services/mock-device-gen
 export class DbInitController {
     constructor(
         @InjectDataSource() private dataSource: DataSource,
-        private deviceGenerator: MockDeviceGeneratorService,
+        private mockDeviceGenerator: MockDeviceGeneratorService,
     ) { }
 
     @Get('status')
@@ -179,18 +179,18 @@ export class DbInitController {
             // 使用设备生成器创建设备
             const devices = [
                 // 卡车类设备
-                this.deviceGenerator.createBaseDevice(
+                this.mockDeviceGenerator.createBaseDevice(
                     'DEV-TRK-A001',
                     '卡车 A001',
                     '物流运输卡车'
                 ),
-                this.deviceGenerator.createBaseDevice(
+                this.mockDeviceGenerator.createBaseDevice(
                     'DEV-TRK-A002',
                     '卡车 A002',
                     '城际配送卡车'
                 ),
                 // 叉车类设备
-                this.deviceGenerator.createBaseDevice(
+                this.mockDeviceGenerator.createBaseDevice(
                     'DEV-FLT-F001',
                     '叉车 F001',
                     '货物装卸叉车'
@@ -220,6 +220,89 @@ export class DbInitController {
         } catch (error) {
             return {
                 message: '设备数据初始化失败',
+                error: error.message,
+                timestamp: new Date(),
+            };
+        }
+    }
+
+    @Post('carbon-devices')
+    @ApiOperation({ summary: '初始化碳排放监测设备数据' })
+    @ApiResponse({ status: 201, description: '碳排放监测设备数据初始化成功' })
+    async initCarbonDevices() {
+        try {
+            // 检查是否已存在碳排放监测设备
+            const carbonDeviceCount = await this.dataSource
+                .createQueryBuilder()
+                .select('COUNT(*)')
+                .from(Device, 'device')
+                .where('device.type LIKE :type', { type: '%carbon%' })
+                .orWhere('device.type LIKE :type2', { type2: '%energy%' })
+                .getRawOne();
+
+            if (parseInt(carbonDeviceCount.count) > 0) {
+                return {
+                    message: '碳排放监测设备数据已存在，跳过初始化',
+                    count: parseInt(carbonDeviceCount.count),
+                    timestamp: new Date(),
+                };
+            }
+
+            // 添加基础碳排放监测设备
+            const devices = [
+                // 碳排放传感器
+                this.mockDeviceGenerator.createBaseDevice(
+                    'CARBON-SENSOR-001',
+                    '碳排放传感器 001',
+                    '主要车间碳排放监测传感器'
+                ),
+                this.mockDeviceGenerator.createBaseDevice(
+                    'CARBON-SENSOR-002',
+                    '碳排放传感器 002',
+                    '储存区碳排放监测传感器'
+                ),
+
+                // 能源表
+                this.mockDeviceGenerator.createBaseDevice(
+                    'ENERGY-METER-001',
+                    '智能电表 001',
+                    '主变电站智能电表'
+                ),
+
+                // 空气质量监测器
+                this.mockDeviceGenerator.createBaseDevice(
+                    'AIR-QUALITY-001',
+                    '空气质量监测器 001',
+                    '办公区空气质量监测器'
+                ),
+            ];
+
+            // 添加额外的碳排放相关属性
+            devices.forEach(device => {
+                device['emissionFactor'] = Math.random() * 2; // 随机排放因子
+                device['accuracy'] = 0.95 + Math.random() * 0.04; // 监测精度95%-99%
+                device['calibrationCycle'] = 90; // 校准周期（天）
+            });
+
+            // 插入设备数据
+            const result = await this.dataSource
+                .createQueryBuilder()
+                .insert()
+                .into(Device)
+                .values(devices)
+                .execute();
+
+            // 使用生成器生成更多碳排放监测设备
+            const generatedResult = await this.mockDeviceGenerator.generateCarbonMonitoringDevices();
+
+            return {
+                message: '碳排放监测设备数据初始化成功',
+                count: result.identifiers.length + generatedResult.devices.length,
+                timestamp: new Date(),
+            };
+        } catch (error) {
+            return {
+                message: '碳排放监测设备数据初始化失败',
                 error: error.message,
                 timestamp: new Date(),
             };

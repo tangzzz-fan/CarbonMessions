@@ -10,7 +10,7 @@ import { MockIotModule } from '../mock-iot/mock-iot.module';
 @Module({
     imports: [
         TerminusModule,
-        TypeOrmModule,
+        TypeOrmModule.forFeature([]),
         MockIotModule,
     ],
     controllers: [

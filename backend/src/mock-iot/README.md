@@ -1,18 +1,28 @@
-# 模拟IoT数据服务
+# 物流园区模拟IoT数据服务
 
-本模块用于开发环境中模拟IoT设备数据上报，通过读取CSV文件并将数据发送到数据采集服务来模拟真实设备数据流。
+本模块用于开发环境中模拟物流园区IoT设备数据上报，通过生成符合物流业务场景的设备数据来支持碳排放分析和预测功能的开发与测试。
 
 ## 注意
 
-此模块仅用于开发和测试环境，不应在生产环境中使用。生产环境应使用实际的Azure IoT Hub数据源。
+此模块仅用于开发和测试环境，不应在生产环境中使用。生产环境应使用实际的设备数据源。
 
 ## 功能特性
 
-- 从CSV文件加载模拟设备数据
-- 支持一次性发布指定数量的数据
-- 支持持续模拟数据发送（类似于真实设备定期上报）
-- 可配置发送间隔和数据选择方式
-- 支持随机选择数据或顺序发送
+- 支持基于业务场景的数据生成（车辆进出、货物装卸、仓储作业等）
+- 支持基于时间模式的数据生成（工作时间/非工作时间、高峰/低谷期）
+- 模拟设备状态转换及对应的数据变化特征
+- 设备之间的数据关联性模拟（上下游关系、空间临近关系）
+- 支持异常场景模拟（设备故障、通信中断等）
+- 从CSV文件加载基础模拟设备数据
+- 支持一次性发布或持续模拟数据发送
+- 支持高级随机数据生成（符合特定数值分布的数据）
+
+## 业务场景模拟
+
+系统支持以下典型物流园区业务场景的数据模拟：
+
+### 车辆进出场景
+模拟车辆进出园区过程中产生的一系列设备数据：
 
 ## 使用方法
 
@@ -75,3 +85,59 @@ POST /mock-iot/publish?count=10&interval=1000
 5. 后续处理与真实设备数据完全相同
 
 **注意**：此功能仅在`NODE_ENV`不为`production`时启用。
+
+### 模拟IoT数据服务的curl命令示例
+为了方便在开发环境中通过命令行使用模拟IoT数据服务，以下是各API端点对应的curl命令示例：
+
+#### curl命令示例
+**获取模拟数据状态**
+```
+curl -X GET http://localhost:3000/mock-iot/status
+```
+
+**重新加载模拟数据文件**
+```
+curl -X POST http://localhost:3000/mock-iot/reload
+```
+
+**开始持续模拟数据上报**
+```
+curl -X POST http://localhost:3000/mock-iot/start?interval=5000&devicesPerInterval=3&randomize=true
+```
+
+**停止模拟数据上报**
+```
+curl -X POST http://localhost:3000/mock-iot/stop
+```
+
+**一次性发布模拟数据**
+```
+curl -X POST http://localhost:3000/mock-iot/publish?count=10&interval=1000
+```
+
+**测试流程示例**
+
+以下是一个完整的测试流程示例：
+
+```bash
+# 1. 检查当前状态
+curl -X GET http://localhost:3000/mock-iot/status
+
+# 2. 重新加载模拟数据
+curl -X POST http://localhost:3000/mock-iot/reload
+
+# 3. 发布10条测试数据
+curl -X POST http://localhost:3000/mock-iot/publish
+
+# 4. 开始持续模拟数据上报（每2秒发送2个设备数据）
+curl -X POST "http://localhost:3000/mock-iot/start?interval=2000&devicesPerInterval=2"
+
+# 5. 再次检查状态
+curl -X GET http://localhost:3000/mock-iot/status
+
+# 6. 停止模拟数据上报
+curl -X POST http://localhost:3000/mock-iot/stop
+```
+
+这些命令可以帮助您在开发过程中快速测试和验证模拟IoT数据服务的功能。
+

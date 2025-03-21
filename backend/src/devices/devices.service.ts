@@ -7,6 +7,7 @@ import { UpdateDeviceDto } from './dto/update-device.dto';
 import { QueryDeviceDto } from './dto/query-device.dto';
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/enums/role.enum';
+import { DeviceType } from './enums/device-type.enum';
 
 @Injectable()
 export class DevicesService {
@@ -183,6 +184,17 @@ export class DevicesService {
 
         return this.devicesRepository.findOne({
             where: { deviceId }
+        });
+    }
+
+    /**
+     * 根据设备类型查找设备
+     * @param type 设备类型
+     * @returns 符合类型的设备列表
+     */
+    async findByType(type: DeviceType): Promise<Device[]> {
+        return this.devicesRepository.find({
+            where: { type }
         });
     }
 }
