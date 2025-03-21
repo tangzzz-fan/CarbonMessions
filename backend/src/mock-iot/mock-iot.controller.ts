@@ -103,4 +103,11 @@ export class MockIotController {
     async deleteDeviceData(@Param('id') id: string) {
         return this.mockIotService.deleteDeviceData(id);
     }
+
+    @Post('sync-devices')
+    @ApiOperation({ summary: '从CSV文件同步设备数据' })
+    @ApiResponse({ status: 200, description: '成功从CSV文件同步设备数据' })
+    async syncDevicesFromCsv() {
+        return this.mockIotService.syncDevicesFromCsv();
+    }
 } 

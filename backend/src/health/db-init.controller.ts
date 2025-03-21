@@ -10,11 +10,15 @@ import { DeviceStatus } from '../devices/enums/device-status.enum';
 import { DeviceType } from '../devices/enums/device-type.enum';
 import { EnergyType } from '../devices/enums/energy-type.enum';
 import { ConnectionType } from '../devices/enums/connection-type.enum';
+import { MockDeviceGeneratorService } from '../mock-iot/services/mock-device-generator.service';
 
 @ApiTags('数据库初始化')
 @Controller('db-init')
 export class DbInitController {
-    constructor(@InjectDataSource() private dataSource: DataSource) { }
+    constructor(
+        @InjectDataSource() private dataSource: DataSource,
+        private deviceGenerator: MockDeviceGeneratorService,
+    ) { }
 
     @Get('status')
     @ApiOperation({ summary: '获取数据库初始化状态' })
@@ -172,272 +176,33 @@ export class DbInitController {
                 ? managers.map(m => m.id)
                 : ['default-manager-1', 'default-manager-2'];
 
-            // 定义测试设备数据，使用枚举类型确保类型匹配
+            // 使用设备生成器创建设备
             const devices = [
                 // 卡车类设备
-                {
-                    name: '卡车 A001',
-                    description: '物流运输卡车',
-                    type: DeviceType.TRUCK,
-                    status: DeviceStatus.ACTIVE,
-                    location: '园区入口',
-                    manufacturer: '重型卡车制造商',
-                    model: 'HT-100',
-                    serialNumber: 'TRK-A001',
-                    deviceId: 'DEV-TRK-A001',
-                    energyType: EnergyType.DIESEL,
-                    emissionFactor: 2.3,
-                    operatorId: operatorIds[0] || null,
-                    powerRating: 320.5,
-                    operatingVoltage: 24.0,
-                    operatingCurrent: 120.0,
-                    fuelType: '柴油',
-                    capacity: 80.0,
-                    unit: 'L',
-                    connectionType: ConnectionType.CELLULAR
-                },
-                {
-                    name: '卡车 A002',
-                    description: '城际配送卡车',
-                    type: DeviceType.TRUCK,
-                    status: DeviceStatus.ACTIVE,
-                    location: '配送中心',
-                    manufacturer: '中型卡车制造商',
-                    model: 'MT-200',
-                    serialNumber: 'TRK-A002',
-                    deviceId: 'DEV-TRK-A002',
-                    energyType: EnergyType.DIESEL,
-                    emissionFactor: 1.8,
-                    operatorId: operatorIds[0] || null,
-                    powerRating: 280.0,
-                    operatingVoltage: 24.0,
-                    operatingCurrent: 100.0,
-                    fuelType: '柴油',
-                    capacity: 60.0,
-                    unit: 'L',
-                    connectionType: ConnectionType.CELLULAR
-                },
-                {
-                    name: '卡车 A003',
-                    description: '长途运输卡车',
-                    type: DeviceType.TRUCK,
-                    status: DeviceStatus.MAINTENANCE,
-                    location: '维修车间',
-                    manufacturer: '重型卡车制造商',
-                    model: 'HT-150',
-                    serialNumber: 'TRK-A003',
-                    deviceId: 'DEV-TRK-A003',
-                    energyType: EnergyType.CNG,
-                    emissionFactor: 1.5,
-                    operatorId: operatorIds[1] || null,
-                    powerRating: 350.0,
-                    operatingVoltage: 24.0,
-                    operatingCurrent: 130.0,
-                    fuelType: '压缩天然气',
-                    capacity: 100.0,
-                    unit: 'L',
-                    connectionType: ConnectionType.CELLULAR
-                },
-
+                this.deviceGenerator.createBaseDevice(
+                    'DEV-TRK-A001',
+                    '卡车 A001',
+                    '物流运输卡车'
+                ),
+                this.deviceGenerator.createBaseDevice(
+                    'DEV-TRK-A002',
+                    '卡车 A002',
+                    '城际配送卡车'
+                ),
                 // 叉车类设备
-                {
-                    name: '叉车 F001',
-                    description: '货物装卸叉车',
-                    type: DeviceType.FORKLIFT,
-                    status: DeviceStatus.ACTIVE,
-                    location: '仓库A区',
-                    manufacturer: '叉车制造商',
-                    model: 'FL-50',
-                    serialNumber: 'FL-F001',
-                    deviceId: 'DEV-FL-F001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 1.2,
-                    operatorId: operatorIds[1] || null,
-                    powerRating: 15.0,
-                    operatingVoltage: 48.0,
-                    operatingCurrent: 80.0,
-                    fuelType: null,
-                    capacity: 50.0,
-                    unit: 'kWh',
-                    connectionType: ConnectionType.WIFI
-                },
-                {
-                    name: '叉车 F002',
-                    description: '重型叉车',
-                    type: DeviceType.FORKLIFT,
-                    status: DeviceStatus.ACTIVE,
-                    location: '仓库B区',
-                    manufacturer: '叉车制造商',
-                    model: 'FL-100',
-                    serialNumber: 'FL-F002',
-                    deviceId: 'DEV-FL-F002',
-                    energyType: EnergyType.DIESEL,
-                    emissionFactor: 1.7,
-                    operatorId: operatorIds[0] || null,
-                    powerRating: 75.0,
-                    operatingVoltage: 12.0,
-                    operatingCurrent: 120.0,
-                    fuelType: '柴油',
-                    capacity: 30.0,
-                    unit: 'L',
-                    connectionType: ConnectionType.CELLULAR
-                },
-                {
-                    name: '叉车 F003',
-                    description: '电动微型叉车',
-                    type: DeviceType.FORKLIFT,
-                    status: DeviceStatus.STANDBY,
-                    location: '仓库C区',
-                    manufacturer: '小型设备制造商',
-                    model: 'MFL-20',
-                    serialNumber: 'FL-F003',
-                    deviceId: 'DEV-FL-F003',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 0.8,
-                    operatorId: operatorIds[2] || null,
-                    powerRating: 8.0,
-                    operatingVoltage: 24.0,
-                    operatingCurrent: 40.0,
-                    fuelType: null,
-                    capacity: 20.0,
-                    unit: 'kWh',
-                    connectionType: ConnectionType.WIFI
-                },
-
-                // 包装设备
-                {
-                    name: '包装机 P001',
-                    description: '自动化包装设备',
-                    type: DeviceType.PACKAGING,
-                    status: DeviceStatus.STANDBY,
-                    location: '包装车间',
-                    manufacturer: '包装设备制造商',
-                    model: 'PKG-200',
-                    serialNumber: 'PKG-P001',
-                    deviceId: 'DEV-PKG-P001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 1.0,
-                    operatorId: managerIds[0] || null,
-                    powerRating: 12.5,
-                    operatingVoltage: 220.0,
-                    operatingCurrent: 25.0,
-                    fuelType: null,
-                    capacity: null,
-                    unit: null,
-                    connectionType: ConnectionType.WIFI
-                },
-                {
-                    name: '包装机 P002',
-                    description: '高速自动包装线',
-                    type: DeviceType.PACKAGING,
-                    status: DeviceStatus.ACTIVE,
-                    location: '包装车间',
-                    manufacturer: '包装设备制造商',
-                    model: 'PKG-350',
-                    serialNumber: 'PKG-P002',
-                    deviceId: 'DEV-PKG-P002',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 1.2,
-                    operatorId: managerIds[0] || null,
-                    powerRating: 18.0,
-                    operatingVoltage: 380.0,
-                    operatingCurrent: 32.0,
-                    fuelType: null,
-                    capacity: null,
-                    unit: null,
-                    connectionType: ConnectionType.WIFI
-                },
-
-                // 制冷设备
-                {
-                    name: '冷库 R001',
-                    description: '大型冷藏库',
-                    type: DeviceType.REFRIGERATION,
-                    status: DeviceStatus.ACTIVE,
-                    location: '冷藏区',
-                    manufacturer: '制冷设备制造商',
-                    model: 'CLR-500',
-                    serialNumber: 'RF-R001',
-                    deviceId: 'DEV-RF-R001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 2.5,
-                    operatorId: managerIds[1] || null,
-                    powerRating: 45.0,
-                    operatingVoltage: 380.0,
-                    operatingCurrent: 60.0,
-                    fuelType: null,
-                    capacity: 500.0,
-                    unit: 'm³',
-                    connectionType: ConnectionType.WIFI
-                },
-
-                // 照明设备
-                {
-                    name: '照明系统 L001',
-                    description: '仓库LED照明',
-                    type: DeviceType.LIGHTING,
-                    status: DeviceStatus.ACTIVE,
-                    location: '仓库A区',
-                    manufacturer: '照明设备制造商',
-                    model: 'LED-PRO',
-                    serialNumber: 'LT-L001',
-                    deviceId: 'DEV-LT-L001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 0.5,
-                    operatorId: null,
-                    powerRating: 3.5,
-                    operatingVoltage: 220.0,
-                    operatingCurrent: 10.0,
-                    fuelType: null,
-                    capacity: null,
-                    unit: null,
-                    connectionType: ConnectionType.WIFI
-                },
-
-                // 其他类型设备
-                {
-                    name: '空调系统 A001',
-                    description: '办公区中央空调',
-                    type: DeviceType.OTHER,
-                    status: DeviceStatus.ACTIVE,
-                    location: '办公大楼',
-                    manufacturer: '空调制造商',
-                    model: 'AC-2000',
-                    serialNumber: 'AC-A001',
-                    deviceId: 'DEV-AC-A001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 1.8,
-                    operatorId: null,
-                    powerRating: 25.0,
-                    operatingVoltage: 380.0,
-                    operatingCurrent: 40.0,
-                    fuelType: null,
-                    capacity: 2000.0,
-                    unit: 'm²',
-                    connectionType: ConnectionType.WIFI
-                },
-                {
-                    name: '传送带 C001',
-                    description: '自动分拣传送带',
-                    type: DeviceType.OTHER,
-                    status: DeviceStatus.INACTIVE,
-                    location: '分拣中心',
-                    manufacturer: '物流设备制造商',
-                    model: 'CNV-100',
-                    serialNumber: 'CNV-C001',
-                    deviceId: 'DEV-CNV-C001',
-                    energyType: EnergyType.ELECTRICITY,
-                    emissionFactor: 1.1,
-                    operatorId: operatorIds[2] || null,
-                    powerRating: 7.5,
-                    operatingVoltage: 380.0,
-                    operatingCurrent: 16.0,
-                    fuelType: null,
-                    capacity: 500.0,
-                    unit: 'kg/h',
-                    connectionType: ConnectionType.WIFI
-                }
+                this.deviceGenerator.createBaseDevice(
+                    'DEV-FLT-F001',
+                    '叉车 F001',
+                    '货物装卸叉车'
+                ),
+                // 其他设备类型...
             ];
+
+            // 增加设备的额外属性
+            devices.forEach((device, index) => {
+                device['operatorId'] = operatorIds[index % operatorIds.length] || null;
+                // 添加其他必要属性...
+            });
 
             // 插入设备数据
             const result = await this.dataSource

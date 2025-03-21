@@ -4,6 +4,7 @@ import { MockIotController } from './mock-iot.controller';
 import { MockIotService } from './mock-iot.service';
 import { DataCollectionModule } from '../data-collection/data-collection.module';
 import { DevicesModule } from '../devices/devices.module';
+import { MockDeviceGeneratorService } from './services/mock-device-generator.service';
 
 @Module({
     imports: [
@@ -12,7 +13,7 @@ import { DevicesModule } from '../devices/devices.module';
         DevicesModule, // 导入设备模块，以查询设备信息
     ],
     controllers: [MockIotController],
-    providers: [MockIotService],
-    exports: [MockIotService],
+    providers: [MockIotService, MockDeviceGeneratorService],
+    exports: [MockIotService, MockDeviceGeneratorService],
 })
 export class MockIotModule { } 

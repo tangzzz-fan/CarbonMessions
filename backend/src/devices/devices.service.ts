@@ -172,4 +172,17 @@ export class DevicesService {
         // 返回包含敏感信息的设备数据
         return device;
     }
+
+    /**
+     * 根据设备ID查找设备
+     * @param deviceId 设备ID标识符
+     * @returns 设备实体或null
+     */
+    async findByDeviceId(deviceId: string): Promise<Device | null> {
+        if (!deviceId) return null;
+
+        return this.devicesRepository.findOne({
+            where: { deviceId }
+        });
+    }
 }

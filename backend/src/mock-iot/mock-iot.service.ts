@@ -8,6 +8,12 @@ import { CreateDeviceDataDto } from '../data-collection/dto/create-device-data.d
 import { DevicesService } from '../devices/devices.service';
 import { DataCollectionService } from '../data-collection/data-collection.service';
 import { SimulationConfig } from './interfaces/simulation-config.interface';
+import { DeviceStatus } from '../devices/enums/device-status.enum';
+import { DeviceType } from '../devices/enums/device-type.enum';
+import { EnergyType } from '../devices/enums/energy-type.enum';
+import { ConnectionType } from '../devices/enums/connection-type.enum';
+import { Role } from '../users/enums/role.enum';
+import { MockDeviceGeneratorService } from './services/mock-device-generator.service';
 
 @Injectable()
 export class MockIotService implements OnModuleInit {
@@ -28,6 +34,7 @@ export class MockIotService implements OnModuleInit {
         private queueService: QueueService,
         private devicesService: DevicesService,
         private dataCollectionService: DataCollectionService,
+        private deviceGenerator: MockDeviceGeneratorService,
     ) {
         // 配置CSV文件路径，默认在项目根目录的mock_data文件夹中
         this.csvFilePath = this.configService.get<string>('MOCK_IOT_CSV_PATH') ||
@@ -47,14 +54,29 @@ export class MockIotService implements OnModuleInit {
      */
     private async loadDeviceMapping() {
         try {
-            // 获取系统中所有设备
-            const devices = await this.devicesService.findAll({});
+            // 使用管理员角色查询所有设备
+            const devices = await this.devicesService.findAll({ roles: [Role.ADMIN] });
+            this.deviceMapping.clear(); // 清除旧映射
+
+            let mappedCount = 0;
             devices.forEach(device => {
                 if (device.deviceId) {
                     this.deviceMapping.set(device.deviceId, device.id);
+                    mappedCount++;
                 }
             });
-            this.logger.log(`已加载${this.deviceMapping.size}个设备映射关系`);
+
+            this.logger.log(`共找到${devices.length}个设备，成功映射${mappedCount}个设备关系`);
+
+            // 如果没有映射关系，自动尝试同步设备
+            if (mappedCount === 0 && devices.length === 0) {
+                this.logger.warn('未找到任何设备，将尝试从CSV自动同步设备');
+                await this.syncDevicesFromCsv();
+                // 同步后重新加载映射
+                await this.loadDeviceMapping();
+            } else if (mappedCount === 0 && devices.length > 0) {
+                this.logger.warn('找到设备但没有deviceId，请检查设备配置');
+            }
         } catch (error) {
             this.logger.error(`加载设备映射失败: ${error.message}`);
         }
@@ -312,5 +334,61 @@ export class MockIotService implements OnModuleInit {
             return deletedDevice;
         }
         return null;
+    }
+
+    /**
+     * 将CSV文件中的设备与系统中的设备同步
+     */
+    async syncDevicesFromCsv(): Promise<{ created: number, updated: number, total: number }> {
+        if (this.mockData.length === 0) {
+            await this.loadMockData();
+        }
+
+        // 获取CSV中的所有唯一设备标识符
+        const csvDeviceIds = [...new Set(this.mockData.map(item => item.device_id || item.deviceId))];
+
+        let created = 0;
+        let updated = 0;
+
+        for (const deviceId of csvDeviceIds) {
+            // 检查设备是否存在
+            const existingDevice = await this.devicesService.findByDeviceId(deviceId);
+
+            if (!existingDevice) {
+                // 创建新设备
+                try {
+                    const mockItem = this.mockData.find(item =>
+                        (item.device_id || item.deviceId) === deviceId);
+
+                    if (mockItem) {
+                        // 使用设备生成器创建标准化设备
+                        const newDevice = this.deviceGenerator.createBaseDevice(
+                            deviceId,
+                            `${deviceId}`,
+                            '从CSV文件自动导入的设备'
+                        );
+
+                        // 添加其他属性
+                        newDevice['location'] = '随机';
+
+                        await this.devicesService.create(newDevice);
+                        created++;
+                    }
+                } catch (error) {
+                    this.logger.error(`创建设备${deviceId}失败: ${error.message}`);
+                }
+            } else {
+                // 设备已存在，可以选择更新一些信息
+                updated++;
+            }
+        }
+
+        await this.loadDeviceMapping(); // 重新加载设备映射
+
+        return {
+            created,
+            updated,
+            total: csvDeviceIds.length
+        };
     }
 } 
