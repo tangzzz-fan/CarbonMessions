@@ -6,11 +6,12 @@ import { DbInitController } from './db-init.controller';
 import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MockIotModule } from '../mock-iot/mock-iot.module';
+import { User } from '../users/entities/user.entity';
 
 @Module({
     imports: [
         TerminusModule,
-        TypeOrmModule.forFeature([]),
+        TypeOrmModule.forFeature([User]),
         MockIotModule,
     ],
     controllers: [

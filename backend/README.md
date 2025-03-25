@@ -74,6 +74,17 @@ curl -X POST http://localhost:3000/db-init/devices
 - 经理: manager/manager123
 - 操作员: operator/operator123
 - 普通用户: user/user123
+```
+username: 'admin',
+email: 'admin@example.com',
+password: 'admin123'
+role: Role.ADMIN // 使用枚举类型
+
+# 管理员登录
+curl -X POST http://localhost:3000/auth/login \
+-H "Content-Type: application/json" \
+-d '{"username": "admin", "password": "admin123"}'
+```
 
 初始化的设备数据包括不同类型的设备（卡车、叉车、包装设备等），不同的能源类型（电力、柴油、压缩天然气等）和不同的状态（活跃、待机、维护中等）。
 

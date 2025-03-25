@@ -4,6 +4,9 @@ import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from '../users/entities/user.entity';
+import { Repository } from 'typeorm';
 
 // 临时存储密码重置令牌（实际应用中应该使用数据库存储）
 const passwordResetTokens = new Map<string, { userId: string, expiresAt: Date }>();
@@ -11,26 +14,55 @@ const passwordResetTokens = new Map<string, { userId: string, expiresAt: Date }>
 @Injectable()
 export class AuthService {
     constructor(
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
     ) { }
 
     async validateUser(username: string, password: string): Promise<any> {
-        // 尝试通过用户名查找用户
-        let user = await this.usersService.findByUsername(username);
+        try {
+            // 尝试通过用户名查找用户，明确指定选择密码字段
+            const user = await this.userRepository.findOne({
+                where: { username },
+                select: ['id', 'username', 'email', 'password', 'role', 'fullName', 'department', 'position']
+            });
 
-        // 如果没找到，尝试通过邮箱查找
-        if (!user) {
-            user = await this.usersService.findByEmail(username);
-        }
+            // 添加额外的检查，确保用户存在且有密码哈希值
+            if (!user || !user.password) {
+                // 如果没找到用户，尝试通过邮箱查找
+                const userByEmail = await this.userRepository.findOne({
+                    where: { email: username },
+                    select: ['id', 'username', 'email', 'password', 'role', 'fullName', 'department', 'position']
+                });
 
-        // 如果找到用户并且密码匹配
-        if (user && await bcrypt.compare(password, user.password)) {
-            const { password, ...result } = user;
-            return result;
+                if (!userByEmail || !userByEmail.password) {
+                    return null;
+                }
+
+                // 验证邮箱用户的密码
+                const isMatch = await bcrypt.compare(password, userByEmail.password);
+                if (isMatch) {
+                    const { password, ...result } = userByEmail;
+                    return result;
+                }
+                return null;
+            }
+
+            // 确保两个参数都存在后再进行比较
+            const isMatch = await bcrypt.compare(password, user.password);
+
+            if (isMatch) {
+                const { password, ...result } = user;
+                return result;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('验证用户时出错:', error.message);
+            throw new UnauthorizedException('验证失败');
         }
-        return null;
     }
 
     async login(user: any) {

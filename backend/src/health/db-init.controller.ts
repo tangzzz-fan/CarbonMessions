@@ -73,39 +73,50 @@ export class DbInitController {
                 };
             }
 
-            // 定义测试用户，使用枚举值代替字符串
-            const users = [
+            // 定义测试用户（使用明文密码）
+            const testUsers = [
                 {
                     username: 'admin',
                     email: 'admin@example.com',
-                    password: '$2b$10$jw9OjMrQtGi4LzPL48jSLO0pssW1W.s1e9X4RoyKCGwMBVvIPlH0e', // 'admin123'
-                    role: Role.ADMIN // 使用枚举类型
+                    plainPassword: 'admin123',
+                    role: Role.ADMIN
                 },
                 {
                     username: 'manager',
                     email: 'manager@example.com',
-                    password: '$2b$10$O0JU4d7nQKGc.cMrlYh5GeJ.P1ZPnD58pHYmiD1CuPrEoU3RjO43.', // 'manager123'
-                    role: Role.MANAGER // 使用枚举类型
+                    plainPassword: 'manager123',
+                    role: Role.MANAGER
                 },
                 {
                     username: 'operator',
                     email: 'operator@example.com',
-                    password: '$2b$10$YOQpIGTGWBxKzJbQI16BO.7/d0ORMJgbxqfZtBP5kYmDczjWePcj2', // 'operator123'
-                    role: Role.OPERATOR // 使用枚举类型
+                    plainPassword: 'operator123',
+                    role: Role.OPERATOR
                 },
                 {
                     username: 'viewer',
                     email: 'viewer@example.com',
-                    password: '$2b$10$G7vvG0LGQJfCVJGLhg4z2u59Id3qI1tMn2qAkfL36SFMsuFCZXd42', // 'viewer123'
-                    role: Role.VIEWER // 使用枚举类型
+                    plainPassword: 'viewer123',
+                    role: Role.VIEWER
                 },
                 {
                     username: 'user',
                     email: 'user@example.com',
-                    password: '$2b$10$P/Tte0sMajE1WL1GX8e69eclXCRgRayhK8mRBvFgRgYyf/G9mcwLO', // 'user123'
-                    role: Role.USER // 使用枚举类型
+                    plainPassword: 'user123',
+                    role: Role.USER
                 },
             ];
+
+            // 计算密码哈希并准备插入数据
+            const users = [];
+            for (const user of testUsers) {
+                const { plainPassword, ...userData } = user;
+                const hashedPassword = await bcrypt.hash(plainPassword, 10);
+                users.push({
+                    ...userData,
+                    password: hashedPassword
+                });
+            }
 
             // 插入用户数据
             const result = await this.dataSource

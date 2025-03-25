@@ -9,9 +9,12 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { RolesModule } from '../users/roles/roles.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../users/entities/user.entity';
 
 @Module({
     imports: [
+        TypeOrmModule.forFeature([User]),
         UsersModule,
         RolesModule,
         PassportModule.register({ defaultStrategy: 'jwt' }),
