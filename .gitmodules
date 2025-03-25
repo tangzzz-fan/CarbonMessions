@@ -1,0 +1,6 @@
+[submodule "predication"]
+	path = predication
+	url = git@github.com:tangzzz-fan/carbon-emissions-predication.git
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:tangzzz-fan/carbon-emissions-frontend.git
