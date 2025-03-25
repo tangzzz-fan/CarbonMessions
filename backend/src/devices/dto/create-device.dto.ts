@@ -73,4 +73,9 @@ export class CreateDeviceDto {
     @IsOptional()
     @IsBoolean({ message: '激活状态必须是布尔值' })
     isActive?: boolean;
+
+    @ApiProperty({ description: '设备ID', required: false })
+    @IsOptional()
+    @IsString({ message: '设备ID必须是字符串' })
+    deviceId?: string;
 } 

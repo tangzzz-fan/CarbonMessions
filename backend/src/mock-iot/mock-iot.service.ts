@@ -43,11 +43,21 @@ export class MockIotService implements OnModuleInit {
     }
 
     async onModuleInit() {
-        // 模块初始化时加载设备映射
-        await this.loadDeviceMapping();
-        // 预加载CSV数据
-        await this.loadMockData();
-        this.logger.log(`已加载${this.mockData.length}条模拟设备数据`);
+        try {
+            // 模块初始化时加载设备映射
+            await this.loadDeviceMapping();
+            // 预加载CSV数据
+            await this.loadMockData();
+            this.logger.log(`已加载${this.mockData.length}条模拟设备数据`);
+        } catch (error) {
+            this.logger.error(`模块初始化失败: ${error.message}`);
+            // 失败时至少尝试加载CSV数据，不会影响基本功能
+            try {
+                await this.loadMockData();
+            } catch (csvError) {
+                this.logger.error(`加载CSV数据失败: ${csvError.message}`);
+            }
+        }
     }
 
     /**
@@ -72,9 +82,7 @@ export class MockIotService implements OnModuleInit {
             // 如果没有映射关系，自动尝试同步设备
             if (mappedCount === 0 && devices.length === 0) {
                 this.logger.warn('未找到任何设备，将尝试从CSV自动同步设备');
-                await this.syncDevicesFromCsv();
-                // 同步后重新加载映射
-                await this.loadDeviceMapping();
+                await this.syncDevicesFromCsv(false); // 传递false参数表示不要在同步后重新加载映射
             } else if (mappedCount === 0 && devices.length > 0) {
                 this.logger.warn('找到设备但没有deviceId，请检查设备配置');
             }
@@ -339,8 +347,9 @@ export class MockIotService implements OnModuleInit {
 
     /**
      * 将CSV文件中的设备与系统中的设备同步
+     * @param reloadMapping 是否在同步后重新加载映射，默认为true
      */
-    async syncDevicesFromCsv(): Promise<{ created: number, updated: number, total: number }> {
+    async syncDevicesFromCsv(reloadMapping: boolean = true): Promise<{ created: number, updated: number, total: number }> {
         if (this.mockData.length === 0) {
             await this.loadMockData();
         }
@@ -373,11 +382,12 @@ export class MockIotService implements OnModuleInit {
                         newDevice['location'] = '随机';
 
                         await this.devicesService.create({
-                            name: newDevice.name || `模拟设备 ${newDevice.deviceId}`,
+                            name: newDevice.name || `模拟设备 ${deviceId}`,
                             description: newDevice.description || '从CSV文件自动导入的设备',
                             type: newDevice.type,
                             status: DeviceStatus.ACTIVE,
-                            serialNumber: newDevice.deviceId,
+                            deviceId: deviceId,
+                            serialNumber: deviceId,
                             energyType: newDevice.energyType || EnergyType.ELECTRICITY,
                             emissionFactor: newDevice.emissionFactor
                         });
@@ -392,7 +402,18 @@ export class MockIotService implements OnModuleInit {
             }
         }
 
-        await this.loadDeviceMapping(); // 重新加载设备映射
+        // 只有在需要时才重新加载设备映射
+        if (reloadMapping && (created > 0 || updated > 0)) {
+            // 使用直接方式更新映射而不是递归调用
+            const devices = await this.devicesService.findAll({ roles: [Role.ADMIN] });
+            this.deviceMapping.clear();
+            devices.forEach(device => {
+                if (device.deviceId) {
+                    this.deviceMapping.set(device.deviceId, device.id);
+                }
+            });
+            this.logger.log(`同步后更新了设备映射，现有${this.deviceMapping.size}个映射关系`);
+        }
 
         return {
             created,
@@ -585,6 +606,7 @@ export class MockIotService implements OnModuleInit {
                 description: newDevice.description || '通过API创建的模拟设备',
                 type: newDevice.type,
                 status: DeviceStatus.ACTIVE,
+                deviceId: newDevice.deviceId,
                 serialNumber: newDevice.deviceId,
                 energyType: newDevice.energyType || EnergyType.ELECTRICITY,
                 emissionFactor: newDevice.emissionFactor
