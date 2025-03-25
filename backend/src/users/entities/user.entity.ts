@@ -45,6 +45,9 @@ export class User {
     @Column({ nullable: true })
     lastLogin: Date;
 
+    @Column({ type: 'timestamp', nullable: true })
+    lastLogout: Date;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 

@@ -1,7 +1,7 @@
 import {
     Controller, Get, Post, Body, Patch, Param, Delete, UseGuards,
     Request, Query, BadRequestException, HttpCode, NotFoundException,
-    ForbiddenException, ConflictException, HttpStatus
+    ForbiddenException, ConflictException, HttpStatus, Put
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -16,6 +16,30 @@ import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from './constants/permissions.constant';
 import { Role } from './enums/role.enum';
 import { RolesService } from './roles/roles.service';
+import { PipeTransform, Injectable, ArgumentMetadata } from '@nestjs/common';
+
+@Injectable()
+export class RoleTransformPipe implements PipeTransform {
+    transform(value: any, metadata: ArgumentMetadata) {
+        if (value && value.role && typeof value.role === 'string') {
+            // 映射小写角色名到枚举值
+            const roleMap = {
+                'admin': Role.ADMIN,
+                'manager': Role.MANAGER,
+                'operator': Role.OPERATOR,
+                'viewer': Role.VIEWER,
+                'user': Role.USER
+            };
+
+            // 尝试直接映射（忽略大小写）
+            const mappedRole = roleMap[value.role.toLowerCase()];
+            if (mappedRole) {
+                value.role = mappedRole;
+            }
+        }
+        return value;
+    }
+}
 
 @ApiTags('用户管理')
 @Controller('users')
@@ -39,25 +63,45 @@ export class UsersController {
     }
 
     @Get()
-    @Roles(Role.ADMIN, Role.MANAGER)
-    @Permissions(PERMISSIONS.USER_READ)
-    @ApiOperation({ summary: '获取所有用户' })
-    @ApiResponse({ status: 200, description: '返回用户列表' })
-    @ApiQuery({ name: 'role', required: false, description: '按角色过滤' })
-    @ApiQuery({ name: 'isActive', required: false, description: '按激活状态过滤' })
-    @ApiQuery({ name: 'department', required: false, description: '按部门过滤' })
-    @Roles(Role.ADMIN)
-    findAll(
-        @Query('role') role?: string,
-        @Query('isActive') isActive?: boolean,
-        @Query('department') department?: string,
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN, Role.MANAGER, Role.OPERATOR)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '获取所有用户列表（需要权限）' })
+    @ApiResponse({ status: 200, description: '成功获取用户列表' })
+    @ApiQuery({ name: 'page', required: false, description: '页码，默认为1' })
+    @ApiQuery({ name: 'limit', required: false, description: '每页条数，默认为10' })
+    @ApiQuery({ name: 'role', required: false, description: '按角色筛选' })
+    async findAll(
+        @Query('page') page: string = '1',
+        @Query('limit') limit: string = '10',
+        @Query('role') role?: string
     ) {
-        const filters = {};
-        if (role) filters['role'] = role;
-        if (isActive !== undefined) filters['isActive'] = isActive;
-        if (department) filters['department'] = department;
+        // 确保页码和条数为正整数
+        const pageNumber = Math.max(1, parseInt(page) || 1);
+        const limitNumber = Math.max(1, Math.min(100, parseInt(limit) || 10));
 
-        return this.usersService.findAll(filters);
+        // 允许通过角色过滤用户
+        const filters = role ? { role } : {};
+
+        // 获取分页数据
+        const [users, total] = await this.usersService.findAllPaginated(
+            filters,
+            pageNumber,
+            limitNumber
+        );
+
+        // 计算总页数
+        const totalPages = Math.ceil(total / limitNumber);
+
+        return {
+            data: users,
+            meta: {
+                total,
+                page: pageNumber,
+                limit: limitNumber,
+                totalPages
+            }
+        };
     }
 
     @Get(':id')
@@ -166,7 +210,10 @@ export class UsersController {
         }
 
         // 更新角色
-        const updatedUser = await this.usersService.update(id, { role: newRole });
+        const updatedUser = await this.usersService.update(id, {
+            role: newRole,
+            isActive: true
+        });
         return {
             message: '用户角色更新成功',
             user: {
@@ -207,5 +254,162 @@ export class UsersController {
 
         const users = await this.usersService.findAll({ role });
         return users;
+    }
+
+    @Get('public')
+    @ApiOperation({ summary: '获取公开用户列表（有限信息）' })
+    @ApiResponse({ status: 200, description: '成功获取公开用户列表' })
+    @ApiQuery({ name: 'page', required: false, description: '页码，默认为1' })
+    @ApiQuery({ name: 'limit', required: false, description: '每页条数，默认为10' })
+    async findAllPublic(
+        @Query('page') page: string = '1',
+        @Query('limit') limit: string = '10'
+    ) {
+        const pageNumber = Math.max(1, parseInt(page) || 1);
+        const limitNumber = Math.max(1, Math.min(100, parseInt(limit) || 10));
+
+        const [users, total] = await this.usersService.findAllPaginated({}, pageNumber, limitNumber);
+
+        return {
+            data: users.map(user => ({
+                id: user.id,
+                username: user.username,
+                fullName: user.fullName,
+                department: user.department,
+                position: user.position,
+            })),
+            meta: {
+                total,
+                page: pageNumber,
+                limit: limitNumber,
+                totalPages: Math.ceil(total / limitNumber)
+            }
+        };
+    }
+
+    @Put(':id')
+    @ApiOperation({ summary: '完整更新用户信息' })
+    @ApiResponse({ status: 200, description: '用户更新成功' })
+    @ApiResponse({ status: 400, description: '请求数据无效' })
+    @ApiResponse({ status: 403, description: '没有权限更新此用户' })
+    @ApiResponse({ status: 404, description: '用户不存在' })
+    async updateFull(
+        @Param('id') id: string,
+        @Body(new RoleTransformPipe()) updateUserDto: UpdateUserDto,
+        @Request() req
+    ) {
+        try {
+            // 记录请求详情以便调试
+            console.log(`PUT /users/${id} 请求体:`, JSON.stringify(updateUserDto));
+
+            // 权限检查逻辑与PATCH方法相同
+            if (req.user.role !== Role.ADMIN && req.user.id !== id) {
+                throw new ForbiddenException('您没有权限更新其他用户的信息');
+            }
+
+            // 只有管理员可以更改用户角色
+            if (updateUserDto.role && req.user.role !== Role.ADMIN) {
+                throw new ForbiddenException('只有管理员可以更改用户角色');
+            }
+
+            // 确保请求至少包含一个需要更新的字段
+            if (Object.keys(updateUserDto).length === 0) {
+                throw new BadRequestException('请求中必须包含至少一个要更新的字段');
+            }
+
+            // 调用服务方法更新用户
+            const updatedUser = await this.usersService.update(id, updateUserDto);
+            return updatedUser;
+        } catch (error) {
+            console.error(`更新用户 ${id} 失败:`, error.message);
+
+            // 重新抛出异常，但提供更多上下文
+            if (error instanceof BadRequestException) {
+                throw new BadRequestException(`请求数据无效: ${error.message}`);
+            }
+            throw error;
+        }
+    }
+
+    // 仅用于开发环境
+    @Post('debug')
+    @ApiOperation({ summary: '调试请求数据（仅用于开发环境）' })
+    debugRequest(@Body() requestData: any) {
+        console.log('收到的调试请求数据:', requestData);
+        return {
+            received: requestData,
+            timestamp: new Date(),
+            message: '请求成功接收，请检查服务器日志以获取详细信息'
+        };
+    }
+
+    @Post('validate')
+    @ApiOperation({ summary: '验证用户数据（调试用）' })
+    async validateUserData(@Body() data: any) {
+        try {
+            console.log('收到的验证数据:', data);
+
+            // 尝试转换角色（如果存在）
+            if (data.role && typeof data.role === 'string') {
+                // 转换为大写
+                const upperRole = data.role.toUpperCase();
+
+                // 检查是否为有效角色
+                if (Object.values(Role).includes(upperRole as Role)) {
+                    console.log(`角色 "${data.role}" 有效，转换为: ${upperRole}`);
+                } else {
+                    console.log(`角色 "${data.role}" 无效，有效值为: ${Object.values(Role).join(', ')}`);
+                }
+            }
+
+            // 返回转换和验证结果
+            return {
+                original: data,
+                validated: {
+                    // 添加验证和转换结果
+                    role: data.role ? data.role.toUpperCase() : undefined,
+                    isActive: data.isActive,
+                    status: data.status ?
+                        (data.status === 'active' ? true : false) :
+                        undefined
+                },
+                message: '验证完成，请查看服务器日志获取详细信息'
+            };
+        } catch (error) {
+            return {
+                error: error.message,
+                original: data
+            };
+        }
+    }
+
+    @Post('role-debug')
+    @ApiOperation({ summary: '调试角色转换' })
+    async debugRoleTransformation(@Body() data: { role: string }) {
+        try {
+            // 打印原始角色值
+            console.log('原始角色值:', data.role);
+
+            // 转换为大写并检查是否有效
+            const upperRole = data.role.toUpperCase();
+            console.log('转换后角色值:', upperRole);
+
+            // 检查是否为有效角色
+            const isValid = Object.values(Role).includes(upperRole as Role);
+            console.log('是否为有效角色:', isValid);
+            console.log('有效角色值:', Object.values(Role));
+
+            return {
+                original: data.role,
+                transformed: upperRole,
+                valid: isValid,
+                validRoles: Object.values(Role)
+            };
+        } catch (error) {
+            return {
+                error: error.message,
+                data
+            };
+        }
     }
 } 

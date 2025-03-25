@@ -13,6 +13,9 @@ const passwordResetTokens = new Map<string, { userId: string, expiresAt: Date }>
 
 @Injectable()
 export class AuthService {
+    // 添加一个简单的令牌黑名单（实际项目中应使用Redis等缓存系统）
+    private tokenBlacklist = new Set<string>();
+
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
@@ -137,6 +140,7 @@ export class AuthService {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await this.usersService.update(user.id, {
             newPassword: hashedPassword,
+            isActive: true,
             // 直接设置哈希密码，跳过验证
             // 注意：实际应用中可能需要更安全的实现
         });
@@ -188,15 +192,44 @@ export class AuthService {
         }
     }
 
+    // 添加登出方法
+    async logout(userId: string): Promise<void> {
+        try {
+            // 记录用户最后一次登出时间
+            await this.usersService.updateLastLogout(userId);
+
+            // 注意：这里没有实现完整的令牌黑名单机制
+            // 在实际生产环境中，应该使用Redis等缓存系统存储已登出的令牌
+        } catch (error) {
+            console.error('处理用户登出时出错:', error.message);
+        }
+    }
+
+    // 验证令牌时检查黑名单
     validateToken(token: string): any {
         try {
+            // 检查令牌是否在黑名单中
+            if (this.tokenBlacklist.has(token)) {
+                throw new UnauthorizedException('令牌已失效');
+            }
+
             // 使用 JwtService 验证 token
             const decoded = this.jwtService.verify(token);
-            // 如果需要，可以根据解码后的信息查找用户
             return decoded; // 返回解码后的用户信息
         } catch (error) {
             // 如果 token 无效或过期，抛出未授权异常
             throw new UnauthorizedException('无效的 token');
         }
+    }
+
+    // 添加令牌到黑名单的方法（可选）
+    invalidateToken(token: string): void {
+        this.tokenBlacklist.add(token);
+
+        // 设置定时清理，避免黑名单无限增长
+        // 应该基于令牌的过期时间来设置清理时间
+        setTimeout(() => {
+            this.tokenBlacklist.delete(token);
+        }, 3600000); // 1小时后从黑名单移除
     }
 } 

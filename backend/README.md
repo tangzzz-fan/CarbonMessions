@@ -74,12 +74,15 @@ curl -X POST http://localhost:3000/db-init/devices
 - 经理: manager/manager123
 - 操作员: operator/operator123
 - 普通用户: user/user123
+```json
+{
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "admin123",
+    "role": "ADMIN"
+}
 ```
-username: 'admin',
-email: 'admin@example.com',
-password: 'admin123'
-role: Role.ADMIN // 使用枚举类型
-
+```bash
 # 管理员登录
 curl -X POST http://localhost:3000/auth/login \
 -H "Content-Type: application/json" \

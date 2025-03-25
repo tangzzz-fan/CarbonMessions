@@ -108,4 +108,10 @@ export class Device {
 
     @OneToMany(() => DeviceData, deviceData => deviceData.device)
     deviceData: DeviceData[];
+
+    @Column({ nullable: true, type: 'date' })
+    installationDate: Date;
+
+    @Column({ nullable: true, type: 'date' })
+    lastCalibrationDate: Date;
 }

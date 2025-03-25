@@ -75,4 +75,20 @@ export class AuthController {
     getProtectedResource(@Request() req) {
         return { message: 'This is a protected resource', user: req.user };
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('logout')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '用户登出' })
+    @ApiResponse({ status: 200, description: '登出成功' })
+    @ApiResponse({ status: 401, description: '未授权' })
+    async logout(@Request() req) {
+        const userId = req.user.id;
+        await this.authService.logout(userId);
+
+        return {
+            message: '登出成功',
+            timestamp: new Date(),
+        };
+    }
 } 
