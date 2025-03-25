@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { TokenRefreshMiddleware } from './auth/middleware/token-refresh.middleware';
 import { MockIotModule } from './mock-iot/mock-iot.module';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
     imports: [
@@ -52,9 +53,9 @@ import { MockIotModule } from './mock-iot/mock-iot.module';
 
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-        // 对所有需要 JWT 验证的路由应用中间件
+        // 添加日志中间件
         consumer
-            .apply(TokenRefreshMiddleware)
-            .forRoutes('*'); // 或者指定特定路由
+            .apply(LoggerMiddleware, TokenRefreshMiddleware)
+            .forRoutes('*');
     }
 } 
