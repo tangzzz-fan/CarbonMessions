@@ -9,6 +9,8 @@ import { DeviceStatus } from '../../devices/enums/device-status.enum';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MockDeviceGeneratorService } from '../services/mock-device-generator.service';
+import { MockIotEvents } from '../events/mock-iot.events';
+import { QueueService } from '../../data-collection/queue/queue.service';
 
 // 不使用依赖注入，直接模拟整个服务
 jest.mock('../mock-iot.service');
@@ -130,10 +132,11 @@ describe('MockIotService', () => {
 
         service = new MockIotService(
             {} as ConfigService,
-            {} as any, // QueueService
+            {} as QueueService,
             devicesServiceMock as DevicesService,
             dataCollectionServiceMock as DataCollectionService,
-            {} as MockDeviceGeneratorService
+            {} as MockDeviceGeneratorService,
+            {} as MockIotEvents
         );
     });
 

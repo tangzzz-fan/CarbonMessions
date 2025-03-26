@@ -44,7 +44,7 @@ DEV-FLT-F001,2023-08-10T08:40:00Z,power_consumption,15.2,kWh
 
 #### 获取模拟数据状态
 ```
-GET /mock-iot/status
+GET /mock-iot/mockSystemStatus
 ```
 
 #### 重新加载模拟数据文件
@@ -92,7 +92,7 @@ POST /mock-iot/publish?count=10&interval=1000
 #### curl命令示例
 **获取模拟数据状态**
 ```
-curl -X GET http://localhost:3000/mock-iot/status
+curl -X GET http://localhost:3000/mock-iot/mockSystemStatus
 ```
 
 **重新加载模拟数据文件**
@@ -121,7 +121,7 @@ curl -X POST http://localhost:3000/mock-iot/publish?count=10&interval=1000
 
 ```bash
 # 1. 检查当前状态
-curl -X GET http://localhost:3000/mock-iot/status
+curl -X GET http://localhost:3000/mock-iot/mockSystemStatus
 
 # 2. 重新加载模拟数据
 curl -X POST http://localhost:3000/mock-iot/reload
@@ -133,7 +133,7 @@ curl -X POST http://localhost:3000/mock-iot/publish
 curl -X POST "http://localhost:3000/mock-iot/start?interval=2000&devicesPerInterval=2"
 
 # 5. 再次检查状态
-curl -X GET http://localhost:3000/mock-iot/status
+curl -X GET http://localhost:3000/mock-iot/mockSystemStatus
 
 # 6. 停止模拟数据上报
 curl -X POST http://localhost:3000/mock-iot/stop

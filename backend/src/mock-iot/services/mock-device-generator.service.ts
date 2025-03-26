@@ -97,6 +97,11 @@ export class MockDeviceGeneratorService {
         for (let i = 0; i < count; i++) {
             const deviceType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
 
+            if (!Object.values(DeviceType).includes(deviceType)) {
+                this.logger.warn(`跳过无效的设备类型: ${deviceType}`);
+                continue;
+            }
+
             const deviceData = {
                 name: `模拟设备-${deviceType}-${Math.floor(Math.random() * 1000)}`,
                 description: `自动生成的模拟${deviceType}设备`,
@@ -150,6 +155,11 @@ export class MockDeviceGeneratorService {
         const results = [];
 
         for (const config of deviceConfigs) {
+            if (!Object.values(DeviceType).includes(config.type)) {
+                this.logger.warn(`跳过无效的设备类型配置: ${config.type}`);
+                continue;
+            }
+
             for (let i = 0; i < config.count; i++) {
                 const deviceData = {
                     name: `${config.type}-${i + 1}`,
@@ -202,6 +212,11 @@ export class MockDeviceGeneratorService {
         const results = [];
 
         for (const config of carbonDeviceConfigs) {
+            if (!Object.values(DeviceType).includes(config.type)) {
+                this.logger.warn(`跳过无效的碳排放监测设备类型: ${config.type}`);
+                continue;
+            }
+
             for (let i = 0; i < config.count; i++) {
                 const deviceData = {
                     name: `${config.type}-${i + 1}`,
@@ -237,5 +252,13 @@ export class MockDeviceGeneratorService {
             message: `成功创建${results.length}个碳排放监测设备`,
             devices: results
         };
+    }
+
+    /**
+     * 验证设备类型是否有效
+     * @param type 设备类型
+     */
+    private isValidDeviceType(type: any): boolean {
+        return Object.values(DeviceType).includes(type);
     }
 } 

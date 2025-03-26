@@ -188,4 +188,14 @@ export class DevicesController {
     findSensitiveData(@Param('id') id: string) {
         return this.devicesService.findSensitiveData(id);
     }
+
+    @Post('fix-enum-types')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '修复设备类型枚举值（仅管理员）' })
+    @ApiResponse({ status: 200, description: '返回修复结果' })
+    async fixDeviceTypeEnum() {
+        return this.devicesService.fixDeviceTypeEnum();
+    }
 } 

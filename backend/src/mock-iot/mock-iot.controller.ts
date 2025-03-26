@@ -20,20 +20,26 @@ export class MockIotController {
         private readonly timeSeriesGenerator: TimeSeriesGeneratorService,
     ) { }
 
-    @Get()
-    @ApiOperation({ summary: '获取所有模拟设备' })
-    @ApiResponse({ status: 200, description: '返回所有可用模拟设备列表' })
-    getAllMockDevices() {
-        this.logger.log('获取所有模拟设备');
-        return this.mockIotService.getAllMockDevices();
+    @Get('mockSystemStatus')
+    @ApiOperation({ summary: '获取模拟IoT系统状态' })
+    @ApiResponse({ status: 200, description: '返回模拟IoT系统的状态信息' })
+    async getStatus() {
+        this.logger.log('获取模拟IoT系统状态');
+        return this.mockIotService.getStatus();
     }
 
-    @Post()
-    @ApiOperation({ summary: '创建新的模拟设备' })
-    @ApiResponse({ status: 201, description: '成功创建新的模拟设备' })
-    createMockDevice(@Body() deviceData: any) {
-        this.logger.log(`创建新的模拟设备: ${JSON.stringify(deviceData)}`);
-        return this.mockIotService.createMockDevice(deviceData);
+    @Get('reload')
+    @ApiOperation({ summary: '获取重新加载状态' })
+    @ApiResponse({ status: 200, description: '返回重新加载状态' })
+    async getReloadStatus() {
+        return { status: 'success', message: '可以使用POST /mock-iot/reload重新加载数据' };
+    }
+
+    @Get('tasks')
+    @ApiOperation({ summary: '查询所有模拟任务' })
+    @ApiResponse({ status: 200, description: '返回所有模拟任务' })
+    getAllTasks() {
+        return this.timeSeriesGenerator.getAllTasks();
     }
 
     @Get(':id')
@@ -44,6 +50,14 @@ export class MockIotController {
     getMockDeviceById(@Param('id') id: string) {
         this.logger.log(`获取模拟设备: ${id}`);
         return this.mockIotService.getMockDeviceById(id);
+    }
+
+    @Post()
+    @ApiOperation({ summary: '创建新的模拟设备' })
+    @ApiResponse({ status: 201, description: '成功创建新的模拟设备' })
+    createMockDevice(@Body() deviceData: any) {
+        this.logger.log(`创建新的模拟设备: ${JSON.stringify(deviceData)}`);
+        return this.mockIotService.createMockDevice(deviceData);
     }
 
     @Put(':id')
@@ -64,21 +78,6 @@ export class MockIotController {
     deleteMockDevice(@Param('id') id: string) {
         this.logger.log(`删除模拟设备: ${id}`);
         return this.mockIotService.deleteMockDevice(id);
-    }
-
-    @Get('status')
-    @ApiOperation({ summary: '获取模拟数据状态' })
-    @ApiResponse({ status: 200, description: '返回模拟数据的状态信息' })
-    getStatus() {
-        return this.mockIotService.getSimulationStatus();
-    }
-
-    @Post('reload')
-    @ApiOperation({ summary: '重新加载模拟数据' })
-    @ApiResponse({ status: 200, description: '成功重新加载CSV数据' })
-    async reloadMockData() {
-        await this.mockIotService.loadMockData();
-        return this.mockIotService.getMockDataStatus();
     }
 
     @Post('start')
@@ -123,31 +122,6 @@ export class MockIotController {
             count ? parseInt(count.toString()) : 10,
             interval ? parseInt(interval.toString()) : 1000
         );
-    }
-
-    @Get()
-    async getAllDeviceData() {
-        return this.mockIotService.getAllDeviceData();
-    }
-
-    @Get(':id')
-    async getDeviceDataById(@Param('id') id: string) {
-        return this.mockIotService.getDeviceDataById(id);
-    }
-
-    @Post()
-    async createDeviceData(@Body() deviceData: any) {
-        return this.mockIotService.createDeviceData(deviceData);
-    }
-
-    @Put(':id')
-    async updateDeviceData(@Param('id') id: string, @Body() deviceData: any) {
-        return this.mockIotService.updateDeviceData(id, deviceData);
-    }
-
-    @Delete(':id')
-    async deleteDeviceData(@Param('id') id: string) {
-        return this.mockIotService.deleteDeviceData(id);
     }
 
     @Post('sync-devices')
@@ -292,14 +266,6 @@ export class MockIotController {
         return this.timeSeriesGenerator.getTaskStatus(taskId);
     }
 
-    // 添加查询所有任务的端点
-    @Get('tasks')
-    @ApiOperation({ summary: '查询所有模拟任务' })
-    @ApiResponse({ status: 200, description: '返回所有模拟任务' })
-    getAllTasks() {
-        return this.timeSeriesGenerator.getAllTasks();
-    }
-
     // 添加时间序列数据生成端点
     @Post('time-series/carbon-emission')
     @ApiOperation({ summary: '生成碳排放时间序列数据' })
@@ -406,5 +372,16 @@ export class MockIotController {
             interval,
             { trend, seasonality, noise }
         );
+    }
+
+    // 添加方法不匹配提示
+    @Get('start')
+    getStart() {
+        throw new BadRequestException('该端点需要使用POST方法访问，例如: curl -X POST http://localhost:3000/mock-iot/start');
+    }
+
+    @Get('stop')
+    getStop() {
+        throw new BadRequestException('该端点需要使用POST方法访问，例如: curl -X POST http://localhost:3000/mock-iot/stop');
     }
 } 

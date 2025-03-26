@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DeviceData } from './entities/device-data.entity';
 import { QueueService } from './queue/queue.service';
 import { HttpService } from '@nestjs/axios';
@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { AxiosResponse } from 'axios';
 
 @Injectable()
-export class DataProcessingService {
+export class DataProcessingService implements OnModuleInit {
     private readonly logger = new Logger(DataProcessingService.name);
     private readonly pythonPredictionServiceUrl: string;
 
@@ -17,18 +17,28 @@ export class DataProcessingService {
         private configService: ConfigService,
     ) {
         this.pythonPredictionServiceUrl = this.configService.get<string>('PYTHON_PREDICTION_SERVICE_URL') || 'http://localhost:8000';
+    }
 
-        // 启动处理队列的消费者
-        this.startProcessingQueueConsumer();
+    // 实现OnModuleInit接口，确保在模块初始化时启动消费者
+    async onModuleInit() {
+        this.logger.log('DataProcessingService initialized. Starting queue consumer...');
+        await this.startProcessingQueueConsumer();
     }
 
     /**
      * 启动处理队列的消费者
      */
     private async startProcessingQueueConsumer() {
-        await this.queueService.consumeProcessingQueue(async (data) => {
-            await this.processData(data);
-        });
+        try {
+            this.logger.log('Starting processing queue consumer...');
+            await this.queueService.consumeProcessingQueue(async (data) => {
+                this.logger.debug(`Received data from processing queue: ${JSON.stringify(data)}`);
+                await this.processData(data);
+            });
+            this.logger.log('Processing queue consumer started successfully');
+        } catch (error) {
+            this.logger.error(`Failed to start processing queue consumer: ${error.message}`);
+        }
     }
 
     /**
@@ -37,6 +47,8 @@ export class DataProcessingService {
      */
     async processData(data: DeviceData) {
         try {
+            this.logger.debug(`Processing data for device ${data.deviceId}, type: ${data.type}`);
+
             // 1. 数据验证和清洗
             const cleanedData = this.cleanData(data);
 
@@ -45,9 +57,11 @@ export class DataProcessingService {
 
             // 3. 发送到预测队列 或 直接调用预测服务
             if (this.shouldUsePredictionService(transformedData)) {
+                this.logger.debug(`Sending data to prediction service for device ${data.deviceId}`);
                 await this.sendToPredictionService(transformedData);
             } else {
-                this.queueService.sendToPredictionQueue(transformedData);
+                this.logger.debug(`Sending data to prediction queue for device ${data.deviceId}`);
+                await this.queueService.sendToPredictionQueue(transformedData);
             }
 
             this.logger.log(`Successfully processed data for device ${data.deviceId}`);

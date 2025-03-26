@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MockIotController } from './mock-iot.controller';
 import { MockIotService } from './mock-iot.service';
@@ -8,7 +8,10 @@ import { MockDeviceGeneratorService } from './services/mock-device-generator.ser
 import { ScenarioGeneratorService } from './services/scenario-generator.service';
 import { TimePatternGeneratorService } from './services/time-pattern-generator.service';
 import { TimeSeriesGeneratorService } from './services/time-series-generator.service';
+import { MockIotGateway } from './gateways/mock-iot.gateway';
+import { MockIotEvents } from './events/mock-iot.events';
 
+@Global() // 使模块全局可用
 @Module({
     imports: [
         ConfigModule,
@@ -17,15 +20,19 @@ import { TimeSeriesGeneratorService } from './services/time-series-generator.ser
     ],
     controllers: [MockIotController],
     providers: [
+        MockIotEvents, // 添加事件服务
         MockIotService,
         MockDeviceGeneratorService,
         ScenarioGeneratorService,
         TimePatternGeneratorService,
         TimeSeriesGeneratorService,
+        MockIotGateway
     ],
     exports: [
         MockIotService,
         MockDeviceGeneratorService,
+        MockIotGateway,
+        MockIotEvents, // 导出事件服务
     ],
 })
 export class MockIotModule { } 

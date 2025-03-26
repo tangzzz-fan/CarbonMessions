@@ -13,5 +13,4 @@ export enum EnergyType {
     LPG = 'lpg',                 // 液化石油气
     COAL = 'coal',               // 煤炭
     RENEWABLE = 'renewable',     // 可再生能源
-    OTHER = 'other'              // 其他
 } 

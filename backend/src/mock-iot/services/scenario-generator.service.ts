@@ -4,6 +4,8 @@ import { DataCollectionService } from '../../data-collection/data-collection.ser
 import { CreateDeviceDataDto } from '../../data-collection/dto/create-device-data.dto';
 import { DeviceType } from '../../devices/enums/device-type.enum';
 import { v4 as uuidv4 } from 'uuid';
+import { MockIotGateway } from '../gateways/mock-iot.gateway';
+import { MockIotEvents } from '../events/mock-iot.events';
 
 @Injectable()
 export class ScenarioGeneratorService {
@@ -21,6 +23,8 @@ export class ScenarioGeneratorService {
     constructor(
         private devicesService: DevicesService,
         private dataCollectionService: DataCollectionService,
+        private readonly mockIotGateway: MockIotGateway,
+        private mockIotEvents: MockIotEvents
     ) { }
 
     /**
@@ -668,6 +672,9 @@ export class ScenarioGeneratorService {
                 task.error = error;
             }
             this.simulationTasks.set(taskId, task);
+
+            // 使用事件服务发布任务状态更新
+            this.mockIotEvents.publishTaskStatus(taskId, { ...task });
         }
     }
 

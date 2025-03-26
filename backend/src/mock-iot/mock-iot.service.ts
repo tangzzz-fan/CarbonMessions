@@ -1,8 +1,8 @@
-import { Injectable, Logger, OnModuleInit, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as csv from 'csv-parser';
+import * as fastCsv from 'fast-csv';
 import { QueueService } from '../data-collection/queue/queue.service';
 import { CreateDeviceDataDto } from '../data-collection/dto/create-device-data.dto';
 import { DevicesService } from '../devices/devices.service';
@@ -15,6 +15,8 @@ import { ConnectionType } from '../devices/enums/connection-type.enum';
 import { Role } from '../users/enums/role.enum';
 import { MockDeviceGeneratorService } from './services/mock-device-generator.service';
 import { v4 as uuidv4 } from 'uuid';
+import { MockIotGateway } from './gateways/mock-iot.gateway';
+import { MockIotEvents } from './events/mock-iot.events';
 
 @Injectable()
 export class MockIotService implements OnModuleInit {
@@ -29,6 +31,10 @@ export class MockIotService implements OnModuleInit {
         devicesPerInterval: 3, // 默认每次发送3个设备数据
         randomize: true, // 默认随机选择数据
     };
+    private startTime: number = Date.now();
+    private dataUploadHistory: { deviceId: string, timestamp: Date }[] = [];
+    private errorLog: { message: string, timestamp: Date }[] = [];
+    private lastUpdateTime: Date | null = null;
 
     constructor(
         private configService: ConfigService,
@@ -36,6 +42,7 @@ export class MockIotService implements OnModuleInit {
         private devicesService: DevicesService,
         private dataCollectionService: DataCollectionService,
         private deviceGenerator: MockDeviceGeneratorService,
+        private mockIotEvents: MockIotEvents,
     ) {
         // 配置CSV文件路径，默认在项目根目录的mock_data文件夹中
         this.csvFilePath = this.configService.get<string>('MOCK_IOT_CSV_PATH') ||
@@ -105,14 +112,17 @@ export class MockIotService implements OnModuleInit {
             }
 
             fs.createReadStream(this.csvFilePath)
-                .pipe(csv())
+                .pipe(fastCsv.parse({ headers: true }))
                 .on('data', (data) => this.mockData.push(data))
                 .on('end', () => {
                     this.logger.log(`从${this.csvFilePath}成功加载了${this.mockData.length}条数据`);
+                    this.lastUpdateTime = new Date();
+                    this.dataUploadHistory.push({ deviceId: 'all', timestamp: this.lastUpdateTime });
                     resolve();
                 })
                 .on('error', (error) => {
                     this.logger.error(`读取CSV文件失败: ${error.message}`);
+                    this.errorLog.push({ message: `读取CSV文件失败: ${error.message}`, timestamp: new Date() });
                     reject(error);
                 });
         });
@@ -283,6 +293,15 @@ export class MockIotService implements OnModuleInit {
             this.dataCollectionService.create(deviceDataDto)
                 .then(createdData => {
                     this.logger.debug(`已发布设备 ${deviceId} 的${dataType}数据: ${value}`);
+
+                    // 发布设备数据事件，而不是直接调用网关
+                    this.mockIotEvents.publishDeviceData({
+                        deviceId,
+                        type: dataType,
+                        value,
+                        timestamp: new Date(),
+                        unit: mockItem.unit || 'N/A'
+                    });
                 })
                 .catch(error => {
                     this.logger.error(`创建设备数据失败: ${error.message}`);
@@ -685,5 +704,49 @@ export class MockIotService implements OnModuleInit {
             device: deletedDevice,
             message: '设备删除成功'
         };
+    }
+
+    /**
+     * 获取模拟IoT系统的状态
+     * @returns 状态信息对象
+     */
+    async getStatus() {
+        try {
+            // 获取活跃设备数量
+            const deviceCount = this.mockData.length;
+
+            // 计算最近24小时的数据上传次数
+            const oneDayAgo = new Date();
+            oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+            const recentDataUploads = this.dataUploadHistory.filter(
+                upload => upload.timestamp.getTime() > oneDayAgo.getTime()
+            ).length;
+
+            // 系统启动时间
+            const uptime = Math.floor((Date.now() - this.startTime) / 1000); // 秒
+
+            const statusData = {
+                status: this.simulationActive ? 'running' : 'idle',
+                activeDevices: deviceCount,
+                recentDataUploads,
+                uptime,
+                errors: this.errorLog.slice(-5),
+                lastUpdate: this.lastUpdateTime || null,
+                timestamp: new Date()
+            };
+
+            // 发布系统状态事件，而不是直接调用网关
+            this.mockIotEvents.publishSystemStatus(statusData);
+
+            return statusData;
+        } catch (error) {
+            this.logger.error(`获取状态失败: ${error.message}`);
+            return {
+                status: 'error',
+                message: '获取状态信息时出错',
+                timestamp: new Date()
+            };
+        }
     }
 } 
