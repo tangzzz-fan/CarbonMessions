@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: carbon-emission-frontend-prod
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=/api
+    depends_on:
+      - nestjs-app
+    restart: unless-stopped
+    networks:
+      - carbon-network
+
+  # 后端服务
+  nestjs-app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: carbon-emission-backend-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=carbon_emission
+      - DB_SYNC=false
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=1d
+      - PREDICTION_SERVICE_URL=http://prediction:8000
+      - PREDICTION_API_KEY=${PREDICTION_API_KEY}
+    depends_on:
+      - postgres
+      - rabbitmq
+      - prediction
+    restart: unless-stopped
+    networks:
+      - carbon-network
+
+  # 预测服务
+  prediction:
+    build:
+      context: ./predication
+      dockerfile: Dockerfile
+    container_name: carbon-emission-prediction-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=False
+      - DATA_COLLECTION_API_URL=http://nestjs-app:3000
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_PREDICTION_QUEUE=data_prediction_queue
+      - LOG_LEVEL=INFO
+      - API_KEY=${PREDICTION_API_KEY}
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    networks:
+      - carbon-network
+
+  # PostgreSQL 数据库服务
+  postgres:
+    image: postgres:14
+    container_name: carbon-emission-postgres-prod
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: carbon_emission
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - carbon-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: carbon-emission-rabbitmq-prod
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - carbon-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin 管理工具 (可选，生产环境可以考虑移除)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: carbon-emission-pgadmin-prod
+    depends_on:
+      - postgres
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - carbon-network
+    restart: unless-stopped
+
+networks:
+  carbon-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  pgadmin_data:

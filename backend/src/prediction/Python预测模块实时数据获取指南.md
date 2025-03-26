@@ -81,7 +81,7 @@ connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
 # 声明预测队列
-channel.queue_declare(queue='prediction_queue')
+channel.queue_declare(queue='data_prediction_queue')
 
 def callback(ch, method, properties, body):
     try:
