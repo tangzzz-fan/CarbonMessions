@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { RolesModule } from '../users/roles/roles.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -29,8 +30,8 @@ import { User } from '../users/entities/user.entity';
             }),
         }),
     ],
-    providers: [AuthService, LocalStrategy, JwtStrategy, RolesGuard],
+    providers: [AuthService, LocalStrategy, JwtStrategy, JwtAuthGuard, RolesGuard],
     controllers: [AuthController],
-    exports: [AuthService, JwtModule, RolesGuard],
+    exports: [AuthService, JwtModule, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule { } 

@@ -11,6 +11,8 @@ import {
     ParseUUIDPipe,
     HttpStatus,
     HttpCode,
+    DefaultValuePipe,
+    ParseIntPipe,
 } from '@nestjs/common';
 import { DataCollectionService } from './data-collection.service';
 import { CreateDeviceDataDto } from './dto/create-device-data.dto';
@@ -20,14 +22,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../users/enums/role.enum';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('数据采集')
 @Controller('data-collection')
 export class DataCollectionController {
     private readonly logger = new Logger(DataCollectionController.name);
 
-    constructor(private readonly dataCollectionService: DataCollectionService) { }
+    constructor(
+        private readonly dataCollectionService: DataCollectionService,
+        private readonly configService: ConfigService
+    ) { }
 
     @Post()
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,7 +59,6 @@ export class DataCollectionController {
     }
 
     @Get()
-    @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOperation({ summary: '查询设备数据' })
     @ApiResponse({ status: 200, description: '返回设备数据列表', type: [DeviceData] })
@@ -61,19 +67,54 @@ export class DataCollectionController {
         return this.dataCollectionService.findAll(queryParams);
     }
 
-    @Get(':id')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiOperation({ summary: '通过ID获取设备数据' })
-    @ApiResponse({ status: 200, description: '返回设备数据', type: DeviceData })
-    @ApiResponse({ status: 404, description: '设备数据未找到' })
-    async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DeviceData> {
-        this.logger.log(`Finding device data with id: ${id}`);
-        return this.dataCollectionService.findOne(id);
+    @Public()
+    @Get('open-test')
+    @ApiOperation({ summary: '开放测试端点', description: '无需认证的测试端点' })
+    async openTest() {
+        return {
+            success: true,
+            message: '开放端点访问成功',
+            env: {
+                hasApiKey: !!this.configService.get('PREDICTION_API_KEY'),
+                nodeEnv: this.configService.get('NODE_ENV')
+            }
+        };
+    }
+
+    @Public()
+    @Get('api-key-check')
+    @ApiOperation({ summary: '检查API密钥配置', description: '直接返回API密钥配置信息（开发环境使用）' })
+    async checkApiKey() {
+        // 注意：生产环境中不应该暴露完整的API密钥
+        const apiKey = this.configService.get<string>('PREDICTION_API_KEY');
+        return {
+            hasApiKey: !!apiKey,
+            keyLength: apiKey?.length,
+            keyPrefix: apiKey?.substring(0, 8) + '...',
+            envType: this.configService.get<string>('NODE_ENV')
+        };
+    }
+
+    @Public()
+    @Get('historical-data')
+    @ApiOperation({ summary: '获取设备历史数据', description: '根据设备ID、数据类型和时间范围获取历史数据' })
+    @ApiQuery({ name: 'deviceId', required: false, description: '设备ID' })
+    @ApiQuery({ name: 'type', required: false, description: '数据类型' })
+    @ApiQuery({ name: 'hours', required: false, description: '查询的小时数' })
+    @ApiQuery({ name: 'page', required: false, description: '页码' })
+    @ApiQuery({ name: 'limit', required: false, description: '每页数量' })
+    @ApiResponse({ status: 200, description: '返回历史数据列表' })
+    async getHistoricalData(
+        @Query('deviceId') deviceId?: string,
+        @Query('type') type?: string,
+        @Query('hours', new DefaultValuePipe(24), ParseIntPipe) hours?: number,
+        @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+        @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number,
+    ) {
+        return this.dataCollectionService.getHistoricalData(deviceId, type, hours, page, limit);
     }
 
     @Get('device/:deviceId/latest')
-    @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOperation({ summary: '获取设备最新数据' })
     @ApiResponse({ status: 200, description: '返回设备最新数据', type: DeviceData })
@@ -86,14 +127,14 @@ export class DataCollectionController {
         return this.dataCollectionService.findLatestByDeviceId(deviceId, type);
     }
 
-    // 模拟设备上传数据的端点（不需要认证，供设备使用）
-    @Post('device-upload')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: '设备数据上传端点（供设备使用）' })
-    @ApiResponse({ status: 200, description: '数据上传成功', type: DeviceData })
-    async deviceUpload(@Body() createDeviceDataDto: CreateDeviceDataDto): Promise<DeviceData> {
-        this.logger.log(`Device uploading data: ${JSON.stringify(createDeviceDataDto)}`);
-        return this.dataCollectionService.create(createDeviceDataDto);
+    @Get(':id')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '通过ID获取设备数据' })
+    @ApiResponse({ status: 200, description: '返回设备数据', type: DeviceData })
+    @ApiResponse({ status: 404, description: '设备数据未找到' })
+    async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DeviceData> {
+        this.logger.log(`Finding device data with id: ${id}`);
+        return this.dataCollectionService.findOne(id);
     }
 
     // 管理端点

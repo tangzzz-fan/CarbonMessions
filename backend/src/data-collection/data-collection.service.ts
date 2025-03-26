@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, MoreThan } from 'typeorm';
 import { DeviceData } from './entities/device-data.entity';
 import { CreateDeviceDataDto } from './dto/create-device-data.dto';
 import { QueryDeviceDataDto } from './dto/query-device-data.dto';
@@ -154,5 +154,59 @@ export class DataCollectionService {
         });
 
         return result.affected || 0;
+    }
+
+    /**
+     * 获取设备的历史数据
+     * @param deviceId 设备ID
+     * @param type 数据类型
+     * @param hours 查询的小时数
+     * @param page 页码
+     * @param limit 每页数量
+     * @returns 历史数据列表
+     */
+    async getHistoricalData(
+        deviceId?: string,
+        type?: string,
+        hours?: number,
+        page: number = 1,
+        limit: number = 100
+    ): Promise<{ data: DeviceData[], total: number }> {
+        try {
+            this.logger.debug(`Fetching historical data for device ${deviceId}, type: ${type}, hours: ${hours}`);
+
+            // 构建查询条件
+            const where: any = {};
+            if (deviceId) {
+                where.deviceId = deviceId;
+            }
+            if (type) {
+                where.type = type;
+            }
+
+            // 如果指定了时间范围
+            if (hours && hours > 0) {
+                const startTime = new Date();
+                startTime.setHours(startTime.getHours() - hours);
+                where.timestamp = MoreThan(startTime);
+            }
+
+            // 计算跳过的记录数
+            const skip = (page - 1) * limit;
+
+            // 执行查询
+            const [data, total] = await this.deviceDataRepository.findAndCount({
+                where,
+                order: { timestamp: 'DESC' },
+                skip,
+                take: limit,
+            });
+
+            this.logger.log(`Found ${total} historical data records for the specified criteria`);
+            return { data, total };
+        } catch (error) {
+            this.logger.error(`Failed to fetch historical data: ${error.message}`);
+            throw error;
+        }
     }
 } 
