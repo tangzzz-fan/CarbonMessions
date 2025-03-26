@@ -68,32 +68,6 @@ export class DataCollectionController {
         return this.dataCollectionService.findAll(queryParams);
     }
 
-    @Get('open-test')
-    @ApiOperation({ summary: '开放测试端点', description: '无需认证的测试端点' })
-    async openTest() {
-        return {
-            success: true,
-            message: '开放端点访问成功',
-            env: {
-                hasApiKey: !!this.configService.get('PREDICTION_API_KEY'),
-                nodeEnv: this.configService.get('NODE_ENV')
-            }
-        };
-    }
-
-    @Get('api-key-check')
-    @ApiOperation({ summary: '检查API密钥配置', description: '直接返回API密钥配置信息（开发环境使用）' })
-    async checkApiKey() {
-        // 注意：生产环境中不应该暴露完整的API密钥
-        const apiKey = this.configService.get<string>('PREDICTION_API_KEY');
-        return {
-            hasApiKey: !!apiKey,
-            keyLength: apiKey?.length,
-            keyPrefix: apiKey?.substring(0, 8) + '...',
-            envType: this.configService.get<string>('NODE_ENV')
-        };
-    }
-
     @Get('historical-data')
     @UseGuards(ApiKeyAuthGuard)
     @ApiKeyAuth()

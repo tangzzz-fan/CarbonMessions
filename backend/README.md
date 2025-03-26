@@ -89,6 +89,11 @@ curl -X POST http://localhost:3000/auth/login \
 -d '{"username": "admin", "password": "admin123"}'
 ```
 
+```bash
+# API key 用于服务间访问
+url -H "X-API-KEY: pred_api_bfd8c9a7e35f4de1b82a6c8d9f0" "http://localhost:3000/data-collection/historical-data?hours=24"
+```
+
 初始化的设备数据包括不同类型的设备（卡车、叉车、包装设备等），不同的能源类型（电力、柴油、压缩天然气等）和不同的状态（活跃、待机、维护中等）。
 
 ### 检查测试数据
