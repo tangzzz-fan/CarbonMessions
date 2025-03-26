@@ -20,11 +20,12 @@ import { QueryDeviceDataDto } from './dto/query-device-data.dto';
 import { DeviceData } from './entities/device-data.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ApiKeyAuth } from '../auth/decorators/api-key-auth.decorator';
 import { Role } from '../users/enums/role.enum';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('数据采集')
 @Controller('data-collection')
@@ -67,7 +68,6 @@ export class DataCollectionController {
         return this.dataCollectionService.findAll(queryParams);
     }
 
-    @Public()
     @Get('open-test')
     @ApiOperation({ summary: '开放测试端点', description: '无需认证的测试端点' })
     async openTest() {
@@ -81,7 +81,6 @@ export class DataCollectionController {
         };
     }
 
-    @Public()
     @Get('api-key-check')
     @ApiOperation({ summary: '检查API密钥配置', description: '直接返回API密钥配置信息（开发环境使用）' })
     async checkApiKey() {
@@ -95,15 +94,18 @@ export class DataCollectionController {
         };
     }
 
-    @Public()
     @Get('historical-data')
-    @ApiOperation({ summary: '获取设备历史数据', description: '根据设备ID、数据类型和时间范围获取历史数据' })
+    @UseGuards(ApiKeyAuthGuard)
+    @ApiKeyAuth()
+    @ApiOperation({ summary: '获取设备历史数据', description: '根据设备ID、数据类型和时间范围获取历史数据（需要API密钥认证）' })
     @ApiQuery({ name: 'deviceId', required: false, description: '设备ID' })
     @ApiQuery({ name: 'type', required: false, description: '数据类型' })
     @ApiQuery({ name: 'hours', required: false, description: '查询的小时数' })
     @ApiQuery({ name: 'page', required: false, description: '页码' })
     @ApiQuery({ name: 'limit', required: false, description: '每页数量' })
+    @ApiQuery({ name: 'x-api-key', required: true, description: 'API密钥，通过请求头传递' })
     @ApiResponse({ status: 200, description: '返回历史数据列表' })
+    @ApiResponse({ status: 401, description: 'API密钥无效或未提供' })
     async getHistoricalData(
         @Query('deviceId') deviceId?: string,
         @Query('type') type?: string,
@@ -111,6 +113,7 @@ export class DataCollectionController {
         @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
         @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number,
     ) {
+        this.logger.log(`Fetching historical data with API key auth: deviceId=${deviceId}, type=${type}, hours=${hours}`);
         return this.dataCollectionService.getHistoricalData(deviceId, type, hours, page, limit);
     }
 
@@ -149,4 +152,4 @@ export class DataCollectionController {
         const deletedCount = await this.dataCollectionService.cleanupOldData(beforeDate);
         return { deletedCount };
     }
-} 
+}

@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { TokenRefreshMiddleware } from './auth/middleware/token-refresh.middleware';
 import { MockIotModule } from './mock-iot/mock-iot.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { ApiKeyMiddleware } from './auth/middleware/api-key.middleware';
 
 @Module({
     imports: [
@@ -53,9 +54,9 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-        // 添加日志中间件
+        // 添加日志中间件和API密钥中间件
         consumer
-            .apply(LoggerMiddleware, TokenRefreshMiddleware)
+            .apply(LoggerMiddleware, TokenRefreshMiddleware, ApiKeyMiddleware)
             .forRoutes('*');
     }
-} 
+}

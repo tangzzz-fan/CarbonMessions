@@ -21,7 +21,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
             return true;
         }
 
+        // 检查请求是否已通过API密钥验证
+        const request = context.switchToHttp().getRequest();
+        if (request.isApiKeyAuthenticated) {
+            return true;
+        }
+
         // 否则进行常规的JWT验证
         return super.canActivate(context);
     }
-} 
+}
